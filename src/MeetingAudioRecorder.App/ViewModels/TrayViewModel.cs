@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MeetingAudioRecorder.Core.Interfaces;
 using MeetingAudioRecorder.Core.Models;
+using MeetingAudioRecorder.Core.Services;
 using Microsoft.Extensions.Logging;
 
 namespace MeetingAudioRecorder.App.ViewModels;
@@ -16,6 +17,7 @@ public partial class TrayViewModel : ObservableObject
     private readonly ILogger<TrayViewModel> _logger;
     private readonly Action _openSettings;
     private string? _lastOutputPath;
+    private bool _isExiting;
 
     [ObservableProperty] private string _statusText = "Gotowy";
     [ObservableProperty] private string _durationText = string.Empty;
@@ -153,38 +155,80 @@ public partial class TrayViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Exit()
+    private async Task ExitAsync()
     {
+        if (_isExiting)
+            return;
+
+        var choice = UserExitChoice.Cancel;
         if (_coordinator.State == AppRecordingState.Recording)
         {
             var r = MessageBox.Show(
-                "Trwa nagrywanie. Zatrzymać i zapisać przed wyjściem?",
+                "Trwa nagrywanie.\n\n" +
+                "Tak — zatrzymaj i zapisz MP3 przed wyjściem.\n" +
+                "Nie — zakończ aplikację i zachowaj pliki tymczasowe do odzyskania.",
                 "Wyjście",
                 MessageBoxButton.YesNoCancel,
                 MessageBoxImage.Question);
 
-            if (r == MessageBoxResult.Cancel)
-                return;
-
-            if (r == MessageBoxResult.Yes)
+            choice = r switch
             {
-                try
+                MessageBoxResult.Yes => UserExitChoice.SaveRecording,
+                MessageBoxResult.No => UserExitChoice.PreserveTemporaryFiles,
+                _ => UserExitChoice.Cancel
+            };
+        }
+
+        var action = ShutdownPolicy.Decide(_coordinator.State, choice);
+        if (action == ShutdownAction.Cancel)
+            return;
+
+        if (action == ShutdownAction.WaitForOperation)
+        {
+            _notificationService.ShowWarning(
+                "Proszę czekać",
+                "Trwa uruchamianie, zatrzymywanie lub zapis nagrania. Zamknij aplikację po zakończeniu operacji.");
+            return;
+        }
+
+        _isExiting = true;
+        if (action == ShutdownAction.StopAndSave)
+        {
+            StatusText = "Zapisywanie przed wyjściem…";
+            RecordingResult? result = null;
+            try
+            {
+                result = await _coordinator.StopRecordingAsync().ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Stop przy wyjściu");
+            }
+
+            if (result?.Success != true)
+            {
+                var error = result?.ErrorMessage ?? "Nie udało się zakończyć zapisu.";
+                var exitAnyway = MessageBox.Show(
+                    $"{error}\n\nPliki tymczasowe zostały zachowane. Zakończyć aplikację i odzyskać nagranie przy następnym uruchomieniu?",
+                    "Nie udało się zapisać",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (exitAnyway != MessageBoxResult.Yes)
                 {
-                    _ = _coordinator.StopRecordingAsync().GetAwaiter().GetResult();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Stop przy wyjściu");
+                    _isExiting = false;
+                    return;
                 }
             }
         }
 
+        await _coordinator.DisposeAsync();
         Application.Current.Shutdown();
     }
 
     private void OnStateChanged(object? sender, RecordingStateChangedEventArgs e)
     {
-        Application.Current?.Dispatcher.Invoke(() =>
+        RunOnUi(() =>
         {
             IsRecording = e.Current == AppRecordingState.Recording;
             CanStart = e.Current is AppRecordingState.Idle or AppRecordingState.Completed or AppRecordingState.Error;
@@ -205,7 +249,7 @@ public partial class TrayViewModel : ObservableObject
 
     private void OnDuration(object? sender, TimeSpan duration)
     {
-        Application.Current?.Dispatcher.Invoke(() =>
+        RunOnUi(() =>
         {
             DurationText = FormatDuration(duration);
         });
@@ -220,4 +264,16 @@ public partial class TrayViewModel : ObservableObject
     }
 
     private static string UserMessage(Exception ex) => ex.Message;
+
+    private static void RunOnUi(Action action)
+    {
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher is null)
+            return;
+
+        if (dispatcher.CheckAccess())
+            action();
+        else
+            _ = dispatcher.InvokeAsync(action);
+    }
 }

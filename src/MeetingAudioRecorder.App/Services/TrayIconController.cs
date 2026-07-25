@@ -20,11 +20,20 @@ public sealed class TrayIconController
 
     public void Update(AppRecordingState state, TimeSpan? duration = null, string? error = null)
     {
-        Application.Current?.Dispatcher.Invoke(() =>
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher is null)
+            return;
+
+        void Apply()
         {
             _tray.IconSource = CreateIcon(state);
             _tray.ToolTipText = BuildTooltip(state, duration, error);
-        });
+        }
+
+        if (dispatcher.CheckAccess())
+            Apply();
+        else
+            _ = dispatcher.InvokeAsync(Apply);
     }
 
     private static string BuildTooltip(AppRecordingState state, TimeSpan? duration, string? error) => state switch

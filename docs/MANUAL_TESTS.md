@@ -83,6 +83,15 @@
 1. Uruchom aplikację.
 2. Uruchom ponownie — druga instancja nie startuje; komunikat o już działającej aplikacji.
 
+### 11A. R-003 — wyjście podczas nagrywania
+
+1. Rozpocznij nagrywanie i wybierz z tray `Wyjście`.
+2. Wybierz `Tak`; oczekiwane: UI pokazuje zapisywanie, pozostaje responsywne, powstaje MP3 i proces się kończy.
+3. Powtórz i wybierz `Nie`; oczekiwane: proces się kończy, pliki temp oraz manifest pozostają do recovery.
+4. Powtórz i wybierz `Anuluj`; oczekiwane: nagrywanie trwa dalej.
+5. Kliknij `Wyjście` podczas przetwarzania; oczekiwane: komunikat „Proszę czekać”, bez zawieszenia i bez drugiego stopu.
+6. Wymuś błąd zapisu; oczekiwane: aplikacja pyta, czy wyjść z zachowaniem temp, albo pozwala pozostać uruchomiona.
+
 ## 12. Autostart
 
 1. Włącz w ustawieniach, wyloguj/zaloguj — aplikacja w tray.

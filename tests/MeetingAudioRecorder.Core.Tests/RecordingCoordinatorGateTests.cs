@@ -158,4 +158,13 @@ public class RecordingCoordinatorGateTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => coordinator.StartRecordingAsync());
     }
+
+    [Fact]
+    public async Task DisposeAsync_CanBeCalledMoreThanOnce()
+    {
+        var coordinator = CreateCoordinator();
+
+        await coordinator.DisposeAsync();
+        await coordinator.DisposeAsync();
+    }
 }

@@ -43,6 +43,8 @@ Akceptacja: materiał jest odzyskiwany po `Stop-Process -Force` w trakcie nagran
 
 #### R-003: asynchroniczne wyjście bez deadlocka
 
+Status: implementacja i testy automatyczne zakończone; test interaktywny tray oczekuje na wykonanie.
+
 - Usuń synchroniczne oczekiwanie w `TrayViewModel.Exit`.
 - Zablokuj wielokrotne wyjście i pokaż stan zapisywania.
 - Użyj asynchronicznego dispatchera dla zdarzeń z workerów.
@@ -112,3 +114,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-07-26 | Baseline | .NET 8, Windows | 36/36 testów, build 0 ostrzeżeń | Analiza statyczna; bez testu urządzeń |
 | 2026-07-26 | R-001 | Testy syntetyczne 44,1/48 kHz | 41/41 testów; 10 min z dokładnością do ramki | Usunięto spekulacyjny timer; wymagany test WASAPI na urządzeniu |
 | 2026-07-26 | R-002 | Zerwany WAV float 48 kHz stereo | 45/45 testów; odzysk 250 ms, idempotencja | Oryginał niezmieniony; wymagany test zabicia procesu |
+| 2026-07-26 | R-003 | Polityka zamknięcia i dispose | 55/55 testów; build bez ostrzeżeń | Brak synchronicznego wait/dispatcher; wymagany test tray |

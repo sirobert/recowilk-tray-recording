@@ -30,6 +30,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
     private Stopwatch? _durationWatch;
     private Timer? _durationTimer;
     private string? _lastError;
+    private int _disposeState;
 
     public RecordingCoordinator(
         ISettingsService settingsService,
@@ -557,6 +558,9 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposeState, 1) != 0)
+            return;
+
         _durationTimer?.Dispose();
         _recordingCts?.Cancel();
         await SafeAbortAsync().ConfigureAwait(false);

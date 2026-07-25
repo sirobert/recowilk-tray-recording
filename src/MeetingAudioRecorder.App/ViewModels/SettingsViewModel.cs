@@ -275,13 +275,22 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     private void OnLevelChanged(object? sender, AudioLevelEventArgs e)
     {
-        Application.Current?.Dispatcher.Invoke(() =>
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher is null)
+            return;
+
+        void Apply()
         {
             if (IsMicTesting)
                 MicLevel = Math.Min(1.0, e.Peak * 1.5);
             if (IsLoopTesting)
                 LoopLevel = Math.Min(1.0, e.Peak * 1.5);
-        });
+        }
+
+        if (dispatcher.CheckAccess())
+            Apply();
+        else
+            _ = dispatcher.InvokeAsync(Apply);
     }
 
     public void StopTests()

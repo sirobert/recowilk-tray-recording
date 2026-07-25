@@ -174,7 +174,7 @@ public partial class App : Application
 
     private void OpenSettings()
     {
-        Dispatcher.Invoke(() =>
+        void Apply()
         {
             if (_settingsWindow is not null)
             {
@@ -191,7 +191,12 @@ public partial class App : Application
                 _settingsWindow = null;
             };
             _settingsWindow.Show();
-        });
+        }
+
+        if (Dispatcher.CheckAccess())
+            Apply();
+        else
+            _ = Dispatcher.InvokeAsync(Apply);
     }
 
     private void OnDeviceChanged(object? sender, DeviceChangedEventArgs e)

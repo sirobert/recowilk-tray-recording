@@ -37,17 +37,26 @@ public sealed class TrayNotificationService : INotificationService
     private void Show(string title, string message, BalloonIcon icon, string? openPath)
     {
         _pendingOpenPath = openPath;
-        try
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher is null)
+            return;
+
+        void Apply()
         {
-            Application.Current?.Dispatcher.Invoke(() =>
+            try
             {
                 _tray?.ShowBalloonTip(title, message, icon);
-            });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Powiadomienie: {Title} {Message}", title, message);
+            }
         }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Powiadomienie: {Title} {Message}", title, message);
-        }
+
+        if (dispatcher.CheckAccess())
+            Apply();
+        else
+            _ = dispatcher.InvokeAsync(Apply);
     }
 
     private void OnBalloonClicked(object? sender, RoutedEventArgs e)
