@@ -32,6 +32,8 @@ Akceptacja: syntetyczny test 10 minut daje długość z tolerancją jednej ramki
 
 #### R-002: recovery plików po przerwaniu procesu
 
+Status: implementacja i testy automatyczne zakończone; test `Stop-Process -Force` oczekuje na wykonanie.
+
 - Wprowadź wersjonowany manifest sesji z formatem, startem, urządzeniami i stanem.
 - Zapewnij format tymczasowy możliwy do naprawienia po braku `Dispose`.
 - Waliduj i naprawiaj nagłówek RIFF/WAV przed miksowaniem.
@@ -109,3 +111,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 |---|---|---|---|---|
 | 2026-07-26 | Baseline | .NET 8, Windows | 36/36 testów, build 0 ostrzeżeń | Analiza statyczna; bez testu urządzeń |
 | 2026-07-26 | R-001 | Testy syntetyczne 44,1/48 kHz | 41/41 testów; 10 min z dokładnością do ramki | Usunięto spekulacyjny timer; wymagany test WASAPI na urządzeniu |
+| 2026-07-26 | R-002 | Zerwany WAV float 48 kHz stereo | 45/45 testów; odzysk 250 ms, idempotencja | Oryginał niezmieniony; wymagany test zabicia procesu |

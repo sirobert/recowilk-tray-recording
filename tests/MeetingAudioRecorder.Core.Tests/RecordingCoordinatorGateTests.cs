@@ -87,6 +87,7 @@ public class RecordingCoordinatorGateTests
             encoding.Object,
             new FileNameService(),
             disk.Object,
+            Mock.Of<IRecordingSessionManifestStore>(),
             NullLogger<RecordingCoordinator>.Instance);
     }
 
@@ -152,6 +153,7 @@ public class RecordingCoordinatorGateTests
             Mock.Of<IMp3EncodingService>(),
             new FileNameService(),
             Mock.Of<IDiskSpaceService>(d => d.HasEnoughSpace(It.IsAny<string>(), It.IsAny<long>(), out It.Ref<long>.IsAny) == true),
+            Mock.Of<IRecordingSessionManifestStore>(),
             NullLogger<RecordingCoordinator>.Instance);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => coordinator.StartRecordingAsync());

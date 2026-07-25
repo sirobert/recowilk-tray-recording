@@ -13,10 +13,17 @@ public sealed class RecordingRecoveryService : IRecordingRecoveryService
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private readonly ILogger<RecordingRecoveryService> _logger;
+    private readonly IWavFileRepairService _wavRepair;
+    private readonly IRecordingSessionManifestStore _manifestStore;
 
-    public RecordingRecoveryService(ILogger<RecordingRecoveryService> logger)
+    public RecordingRecoveryService(
+        ILogger<RecordingRecoveryService> logger,
+        IWavFileRepairService wavRepair,
+        IRecordingSessionManifestStore manifestStore)
     {
         _logger = logger;
+        _wavRepair = wavRepair;
+        _manifestStore = manifestStore;
     }
 
     public IReadOnlyList<RecoverableRecording> FindRecoverableRecordings()
@@ -50,11 +57,12 @@ public sealed class RecordingRecoveryService : IRecordingRecoveryService
         var result = new List<RecoverableRecording>();
         foreach (var (id, entry) in map)
         {
-            var hasMic = entry.mic is not null && entry.micSize > 44;
-            var hasLoop = entry.loop is not null && entry.loopSize > 44;
+            var hasMic = entry.mic is not null && _wavRepair.CanRecover(entry.mic);
+            var hasLoop = entry.loop is not null && _wavRepair.CanRecover(entry.loop);
             if (!hasMic && !hasLoop)
                 continue;
 
+            var manifest = _manifestStore.TryLoad(id);
             result.Add(new RecoverableRecording
             {
                 RecordingId = id,
@@ -64,7 +72,7 @@ public sealed class RecordingRecoveryService : IRecordingRecoveryService
                 LoopbackFileSize = entry.loopSize,
                 HasValidMicrophoneFile = hasMic,
                 HasValidLoopbackFile = hasLoop,
-                DetectedAt = DateTimeOffset.Now
+                DetectedAt = manifest?.StartedAt ?? GetOldestWriteTime(entry.mic, entry.loop)
             });
         }
 
@@ -72,12 +80,52 @@ public sealed class RecordingRecoveryService : IRecordingRecoveryService
         return result;
     }
 
+    public RecoverableRecording PrepareForRecovery(RecoverableRecording recoverable)
+    {
+        string? repairedMic = null;
+        string? repairedLoop = null;
+
+        if (recoverable.HasValidMicrophoneFile)
+        {
+            repairedMic = Path.Combine(
+                AppPaths.TempDirectory,
+                $"{recoverable.RecordingId:N}_microphone.recovered.wav");
+            _wavRepair.RepairToCopy(recoverable.MicrophoneTempPath, repairedMic);
+        }
+
+        if (recoverable.HasValidLoopbackFile)
+        {
+            repairedLoop = Path.Combine(
+                AppPaths.TempDirectory,
+                $"{recoverable.RecordingId:N}_loopback.recovered.wav");
+            _wavRepair.RepairToCopy(recoverable.LoopbackTempPath, repairedLoop);
+        }
+
+        if (repairedMic is null && repairedLoop is null)
+            throw new InvalidDataException("Żadna ścieżka WAV nie nadaje się do odzyskania.");
+
+        return new RecoverableRecording
+        {
+            RecordingId = recoverable.RecordingId,
+            MicrophoneTempPath = repairedMic ?? string.Empty,
+            LoopbackTempPath = repairedLoop ?? string.Empty,
+            DetectedAt = recoverable.DetectedAt,
+            MicrophoneFileSize = repairedMic is null ? 0 : new FileInfo(repairedMic).Length,
+            LoopbackFileSize = repairedLoop is null ? 0 : new FileInfo(repairedLoop).Length,
+            HasValidMicrophoneFile = repairedMic is not null,
+            HasValidLoopbackFile = repairedLoop is not null
+        };
+    }
+
     public void DeleteRecoverable(RecoverableRecording recoverable)
     {
         TryDelete(recoverable.MicrophoneTempPath);
         TryDelete(recoverable.LoopbackTempPath);
+        TryDelete(Path.Combine(AppPaths.TempDirectory, $"{recoverable.RecordingId:N}_microphone.recovered.wav"));
+        TryDelete(Path.Combine(AppPaths.TempDirectory, $"{recoverable.RecordingId:N}_loopback.recovered.wav"));
         var mixed = Path.Combine(AppPaths.TempDirectory, $"{recoverable.RecordingId:N}_mixed.tmp.wav");
         TryDelete(mixed);
+        _manifestStore.Delete(recoverable.RecordingId);
         _logger.LogInformation("Usunięto pliki odzyskiwania {Id}", recoverable.RecordingId);
     }
 
@@ -96,5 +144,14 @@ public sealed class RecordingRecoveryService : IRecordingRecoveryService
         if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
         try { File.Delete(path); }
         catch (Exception ex) { _logger.LogWarning(ex, "Nie usunięto {Path}", path); }
+    }
+
+    private static DateTimeOffset GetOldestWriteTime(string? first, string? second)
+    {
+        var dates = new[] { first, second }
+            .Where(path => !string.IsNullOrEmpty(path) && File.Exists(path))
+            .Select(path => new DateTimeOffset(File.GetLastWriteTime(path!)))
+            .ToArray();
+        return dates.Length == 0 ? DateTimeOffset.Now : dates.Min();
     }
 }

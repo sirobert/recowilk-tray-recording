@@ -94,6 +94,16 @@
 2. Uruchom ponownie — dialog odzyskiwania z plikami temp.
 3. Odzyskaj lub zachowaj folder Temp (brak auto-usuwania).
 
+### 13A. R-002 — protokół twardego przerwania
+
+1. Włącz osobne ścieżki, rozpocznij nagranie i odtwarzaj rozpoznawalny sygnał przez co najmniej 30 s.
+2. Zapisz identyfikator procesu i wykonaj `Stop-Process -Id <PID> -Force`.
+3. Przed ponownym uruchomieniem skopiuj katalog `%LOCALAPPDATA%\MeetingAudioRecorder\Temp` jako dowód.
+4. Uruchom aplikację, wybierz wykrytą sesję i wykonaj recovery.
+5. Oczekiwane: poprawny MP3, czas zbliżony do nagranego odcinka, obie dostępne ścieżki słyszalne.
+6. Potwierdź, że manifest zawiera właściwy czas startu i formaty, a po sukcesie pliki sesji zostały usunięte.
+7. Powtórz z dostępną tylko jedną ścieżką; recovery nadal powinno utworzyć MP3.
+
 ## 14. Konflikt skrótu
 
 1. Ustaw skrót zajęty przez inną aplikację.

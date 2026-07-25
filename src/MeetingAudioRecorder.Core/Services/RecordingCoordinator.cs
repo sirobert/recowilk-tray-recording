@@ -18,6 +18,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
     private readonly IMp3EncodingService _encodingService;
     private readonly IFileNameService _fileNameService;
     private readonly IDiskSpaceService _diskSpaceService;
+    private readonly IRecordingSessionManifestStore _manifestStore;
     private readonly ILogger<RecordingCoordinator> _logger;
     private readonly RecordingStateMachine _stateMachine = new();
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -39,6 +40,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
         IMp3EncodingService encodingService,
         IFileNameService fileNameService,
         IDiskSpaceService diskSpaceService,
+        IRecordingSessionManifestStore manifestStore,
         ILogger<RecordingCoordinator> logger)
     {
         _settingsService = settingsService;
@@ -49,6 +51,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
         _encodingService = encodingService;
         _fileNameService = fileNameService;
         _diskSpaceService = diskSpaceService;
+        _manifestStore = manifestStore;
         _logger = logger;
     }
 
@@ -109,6 +112,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
                 MicrophoneTempPath = micTemp,
                 LoopbackTempPath = loopTemp
             };
+            SaveManifest(_session, state: "starting");
 
             _recordingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var token = _recordingCts.Token;
@@ -128,6 +132,11 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
 
             _session.MicrophoneStartOffsetTicks = _micCapture.StartOffsetTicks;
             _session.LoopbackStartOffsetTicks = _loopbackCapture.StartOffsetTicks;
+            SaveManifest(
+                _session,
+                state: "recording",
+                microphoneFormat: _micCapture.CaptureFormat,
+                loopbackFormat: _loopbackCapture.CaptureFormat);
 
             _durationWatch = Stopwatch.StartNew();
             _durationTimer = new Timer(_ =>
@@ -205,6 +214,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
             _durationWatch?.Stop();
             session.StoppedAt = DateTimeOffset.Now;
             session.Duration = _durationWatch?.Elapsed ?? TimeSpan.Zero;
+            SaveManifest(session, state: "processing");
 
             try
             {
@@ -242,6 +252,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
                 _logger.LogInformation(
                     "Zapisano nagranie {Id}, czas={Duration}, plik={Path}",
                     session.RecordingId, result.Duration, result.OutputPath);
+                _manifestStore.Delete(session.RecordingId);
             }
             else
             {
@@ -292,6 +303,8 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
             };
 
             var result = await ProcessRecordingAsync(session, cancellationToken).ConfigureAwait(false);
+            if (result.Success)
+                _manifestStore.Delete(session.RecordingId);
             _stateMachine.Force(result.Success ? AppRecordingState.Completed : AppRecordingState.Error);
             RaiseState(AppRecordingState.Processing, result.Success ? AppRecordingState.Completed : AppRecordingState.Error, result.ErrorMessage);
             return result;
@@ -428,6 +441,31 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
 
     private void OnMicLevel(object? sender, AudioLevelEventArgs e) => MicrophoneLevelChanged?.Invoke(this, e);
     private void OnLoopLevel(object? sender, AudioLevelEventArgs e) => LoopbackLevelChanged?.Invoke(this, e);
+
+    private void SaveManifest(
+        RecordingSessionInfo session,
+        string state,
+        WaveFormatInfo? microphoneFormat = null,
+        WaveFormatInfo? loopbackFormat = null)
+    {
+        var existing = _manifestStore.TryLoad(session.RecordingId);
+        _manifestStore.Save(new RecordingSessionManifest
+        {
+            RecordingId = session.RecordingId,
+            StartedAt = session.StartedAt,
+            StoppedAt = session.StoppedAt,
+            State = state,
+            MicrophoneDeviceId = session.MicrophoneDeviceId,
+            OutputDeviceId = session.OutputDeviceId,
+            MicrophoneTempPath = session.MicrophoneTempPath,
+            LoopbackTempPath = session.LoopbackTempPath,
+            MicrophoneFormat = microphoneFormat ?? existing?.MicrophoneFormat,
+            LoopbackFormat = loopbackFormat ?? existing?.LoopbackFormat,
+            MicrophoneStartOffsetTicks = session.MicrophoneStartOffsetTicks,
+            LoopbackStartOffsetTicks = session.LoopbackStartOffsetTicks,
+            DurationTicks = session.Duration?.Ticks
+        });
+    }
 
     private void OnCaptureError(object? sender, Exception ex)
     {

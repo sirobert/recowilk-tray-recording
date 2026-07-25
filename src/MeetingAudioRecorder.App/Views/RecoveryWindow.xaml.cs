@@ -35,9 +35,11 @@ public partial class RecoveryWindow : Window
         try
         {
             IsEnabled = false;
-            var result = await _coordinator.RecoverRecordingAsync(item.Recording);
+            var prepared = _recoveryService.PrepareForRecovery(item.Recording);
+            var result = await _coordinator.RecoverRecordingAsync(prepared);
             if (result.Success)
             {
+                _recoveryService.DeleteRecoverable(item.Recording);
                 MessageBox.Show(
                     $"Odzyskano nagranie:\n{result.OutputPath}",
                     "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);

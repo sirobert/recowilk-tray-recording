@@ -19,6 +19,8 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IStartupService, WindowsStartupService>();
         services.AddSingleton<ISingleInstanceService, NamedMutexSingleInstanceService>();
         services.AddSingleton<IRecordingRecoveryService, RecordingRecoveryService>();
+        services.AddSingleton<IRecordingSessionManifestStore, JsonRecordingSessionManifestStore>();
+        services.AddSingleton<IWavFileRepairService, WavFileRepairService>();
         services.AddSingleton<IFileNameService, FileNameService>();
         services.AddSingleton<IDiskSpaceService, DiskSpaceService>();
         return services;
