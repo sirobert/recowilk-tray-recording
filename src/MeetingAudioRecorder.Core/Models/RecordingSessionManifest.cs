@@ -4,7 +4,7 @@ namespace MeetingAudioRecorder.Core.Models;
 
 public sealed class RecordingSessionManifest
 {
-    public int Version { get; init; } = 1;
+    public int Version { get; init; } = 2;
     public Guid RecordingId { get; init; }
     public DateTimeOffset StartedAt { get; init; }
     public DateTimeOffset? StoppedAt { get; set; }
@@ -13,6 +13,7 @@ public sealed class RecordingSessionManifest
     public string OutputDeviceId { get; init; } = string.Empty;
     public string MicrophoneTempPath { get; init; } = string.Empty;
     public string LoopbackTempPath { get; init; } = string.Empty;
+    public RecordingSettingsSnapshot? SettingsSnapshot { get; init; }
     public WaveFormatInfo? MicrophoneFormat { get; set; }
     public WaveFormatInfo? LoopbackFormat { get; set; }
     public long MicrophoneStartOffsetTicks { get; set; }

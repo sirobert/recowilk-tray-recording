@@ -75,6 +75,8 @@ Akceptacja: dryf po 4 godzinach nie przekracza 250 ms; celem jest 100 ms.
 
 #### R-006: niezmienny snapshot sesji
 
+Status: implementacja i testy automatyczne zakończone; test zmiany ustawień i urządzeń w UI oczekuje na wykonanie.
+
 - Zapisz ustawienia miksu, ścieżki i aktywne ID urządzeń w sesji przy starcie.
 - Monitoring urządzeń porównuj z `CurrentSession`.
 - Zmiany ustawień stosuj od następnego nagrania.
@@ -121,3 +123,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-07-26 | R-003 | Polityka zamknięcia i dispose | 55/55 testów; build bez ostrzeżeń | Brak synchronicznego wait/dispatcher; wymagany test tray |
 | 2026-07-26 | R-004 | Budżet capture/processing | 59/59 testów; 48 kHz, MP3, osobne WAV | Monitoring co 5 s; wymagany test małego woluminu |
 | 2026-07-26 | R-005 | Dryf zegara i ułamkowy resampling | 67/67 testów; próg 50 ms, limit 1000 ppm | Korekcja płynna względem monotonicznego czasu sesji; wymagany test 4 h |
+| 2026-07-26 | R-006 | Snapshot ustawień sesji i manifest v2 | 69/69 testów; build bez ostrzeżeń | Miks, zapis, monitoring dysku i recovery używają snapshotu; wymagany test UI/urządzeń |

@@ -8,10 +8,11 @@ public sealed class RecordingSessionInfo
     public Guid RecordingId { get; init; } = Guid.NewGuid();
     public DateTimeOffset StartedAt { get; set; }
     public DateTimeOffset? StoppedAt { get; set; }
-    public string MicrophoneDeviceId { get; set; } = string.Empty;
-    public string OutputDeviceId { get; set; } = string.Empty;
-    public string MicrophoneTempPath { get; set; } = string.Empty;
-    public string LoopbackTempPath { get; set; } = string.Empty;
+    public string MicrophoneDeviceId { get; init; } = string.Empty;
+    public string OutputDeviceId { get; init; } = string.Empty;
+    public string MicrophoneTempPath { get; init; } = string.Empty;
+    public string LoopbackTempPath { get; init; } = string.Empty;
+    public required RecordingSettingsSnapshot SettingsSnapshot { get; init; }
     public string? OutputMp3Path { get; set; }
     public TimeSpan? Duration { get; set; }
     public long MicrophoneStartOffsetTicks { get; set; }

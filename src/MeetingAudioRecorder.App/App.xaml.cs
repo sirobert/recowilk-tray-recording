@@ -210,15 +210,18 @@ public partial class App : Application
         _logger?.LogInformation("DeviceChanged {Kind} {Id}", e.Kind, e.DeviceId);
 
         var coordinator = _services?.GetService<IRecordingCoordinator>();
-        var settings = _services?.GetService<ISettingsService>()?.Current;
-        if (coordinator is null || settings is null)
+        if (coordinator is null)
             return;
 
         if (coordinator.State != AppRecordingState.Recording)
             return;
 
-        var activeMic = settings.MicrophoneDeviceId;
-        var activeOut = settings.OutputDeviceId;
+        var session = coordinator.CurrentSession;
+        if (session is null)
+            return;
+
+        var activeMic = session.MicrophoneDeviceId;
+        var activeOut = session.OutputDeviceId;
 
         if (e.Kind is DeviceChangeKind.Removed or DeviceChangeKind.StateChanged
             && (e.DeviceId == activeMic || e.DeviceId == activeOut))

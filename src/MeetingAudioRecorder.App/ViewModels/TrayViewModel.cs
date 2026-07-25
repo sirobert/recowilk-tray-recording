@@ -70,7 +70,8 @@ public partial class TrayViewModel : ObservableObject
                 var msg = $"Zapisano: {Path.GetFileName(result.OutputPath)}\nCzas: {FormatDuration(result.Duration)}\n{result.OutputPath}";
                 _notificationService.ShowSuccess("Nagranie gotowe", msg, result.OutputPath);
 
-                if (_settingsService.Current.OpenFolderAfterRecording)
+                if (_coordinator.CurrentSession?.SettingsSnapshot.OpenFolderAfterRecording
+                    ?? _settingsService.Current.OpenFolderAfterRecording)
                     OpenPath(Path.GetDirectoryName(result.OutputPath)!);
             }
             else

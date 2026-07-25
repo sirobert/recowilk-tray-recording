@@ -103,10 +103,11 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
             _microphoneFormat = null;
             _loopbackFormat = null;
             ValidateBeforeStart(settings);
+            var settingsSnapshot = RecordingSettingsSnapshot.From(settings);
 
             var recordingId = Guid.NewGuid();
             AppPaths.EnsureDirectories();
-            Directory.CreateDirectory(settings.RecordingsDirectory);
+            Directory.CreateDirectory(settingsSnapshot.RecordingsDirectory);
 
             var micTemp = Path.Combine(AppPaths.TempDirectory, $"{recordingId:N}_microphone.tmp.wav");
             var loopTemp = Path.Combine(AppPaths.TempDirectory, $"{recordingId:N}_loopback.tmp.wav");
@@ -115,10 +116,11 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
             {
                 RecordingId = recordingId,
                 StartedAt = DateTimeOffset.Now,
-                MicrophoneDeviceId = settings.MicrophoneDeviceId,
-                OutputDeviceId = settings.OutputDeviceId,
+                MicrophoneDeviceId = settingsSnapshot.MicrophoneDeviceId,
+                OutputDeviceId = settingsSnapshot.OutputDeviceId,
                 MicrophoneTempPath = micTemp,
-                LoopbackTempPath = loopTemp
+                LoopbackTempPath = loopTemp,
+                SettingsSnapshot = settingsSnapshot
             };
             SaveManifest(_session, state: "starting");
 
@@ -134,8 +136,8 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
             _loopbackCapture.CaptureError += OnCaptureError;
 
             // Start obu źródeł możliwie jednocześnie
-            var micTask = _micCapture.StartAsync(settings.MicrophoneDeviceId, micTemp, token);
-            var loopTask = _loopbackCapture.StartAsync(settings.OutputDeviceId, loopTemp, token);
+            var micTask = _micCapture.StartAsync(settingsSnapshot.MicrophoneDeviceId, micTemp, token);
+            var loopTask = _loopbackCapture.StartAsync(settingsSnapshot.OutputDeviceId, loopTemp, token);
             await Task.WhenAll(micTask, loopTask).ConfigureAwait(false);
 
             _session.MicrophoneStartOffsetTicks = _micCapture.StartOffsetTicks;
@@ -149,7 +151,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
                 loopbackFormat: _loopbackFormat);
 
             EnsureStorageAvailable(
-                settings,
+                settingsSnapshot,
                 duration: TimeSpan.FromMinutes(2),
                 sourceBytes: 0,
                 includeCaptureReserve: true);
@@ -173,7 +175,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
             RaiseState(prev, AppRecordingState.Recording);
             _logger.LogInformation(
                 "Rozpoczęto nagranie {Id}. Mic={MicId}, Out={OutId}",
-                recordingId, settings.MicrophoneDeviceId, settings.OutputDeviceId);
+                recordingId, settingsSnapshot.MicrophoneDeviceId, settingsSnapshot.OutputDeviceId);
         }
         catch (Exception ex)
         {
@@ -320,15 +322,20 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
             _stateMachine.Force(AppRecordingState.Processing);
             RaiseState(AppRecordingState.Idle, AppRecordingState.Processing, "Odzyskiwanie nagrania…");
 
-            var settings = _settingsService.Current;
+            var settingsSnapshot = recoverable.SettingsSnapshot
+                                   ?? RecordingSettingsSnapshot.From(_settingsService.Current);
             var session = new RecordingSessionInfo
             {
                 RecordingId = recoverable.RecordingId,
                 StartedAt = recoverable.DetectedAt,
                 MicrophoneTempPath = recoverable.MicrophoneTempPath,
                 LoopbackTempPath = recoverable.LoopbackTempPath,
-                MicrophoneStartOffsetTicks = 0,
-                LoopbackStartOffsetTicks = 0
+                MicrophoneDeviceId = recoverable.MicrophoneDeviceId,
+                OutputDeviceId = recoverable.OutputDeviceId,
+                SettingsSnapshot = settingsSnapshot,
+                MicrophoneStartOffsetTicks = recoverable.MicrophoneStartOffsetTicks,
+                LoopbackStartOffsetTicks = recoverable.LoopbackStartOffsetTicks,
+                Duration = recoverable.DurationTicks is { } ticks ? TimeSpan.FromTicks(ticks) : null
             };
 
             var result = await ProcessRecordingAsync(session, cancellationToken).ConfigureAwait(false);
@@ -346,7 +353,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
 
     private async Task<RecordingResult> ProcessRecordingAsync(RecordingSessionInfo session, CancellationToken cancellationToken)
     {
-        var settings = _settingsService.Current;
+        var settings = session.SettingsSnapshot;
 
         if (!File.Exists(session.MicrophoneTempPath) && !File.Exists(session.LoopbackTempPath))
             return RecordingResult.Fail(session.RecordingId, "Brak plików tymczasowych nagrania.");
@@ -475,7 +482,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
 
         Directory.CreateDirectory(settings.RecordingsDirectory);
         EnsureStorageAvailable(
-            settings,
+            RecordingSettingsSnapshot.From(settings),
             duration: TimeSpan.FromMinutes(2),
             sourceBytes: 0,
             includeCaptureReserve: true);
@@ -502,7 +509,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
 
             var sourceBytes = GetFileLength(session.MicrophoneTempPath) + GetFileLength(session.LoopbackTempPath);
             EnsureStorageAvailable(
-                _settingsService.Current,
+                session.SettingsSnapshot,
                 elapsed,
                 sourceBytes,
                 includeCaptureReserve: true);
@@ -537,7 +544,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
     }
 
     private void EnsureStorageAvailable(
-        AppSettings settings,
+        RecordingSettingsSnapshot settings,
         TimeSpan duration,
         long sourceBytes,
         bool includeCaptureReserve)
@@ -621,6 +628,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
             OutputDeviceId = session.OutputDeviceId,
             MicrophoneTempPath = session.MicrophoneTempPath,
             LoopbackTempPath = session.LoopbackTempPath,
+            SettingsSnapshot = session.SettingsSnapshot,
             MicrophoneFormat = microphoneFormat ?? existing?.MicrophoneFormat,
             LoopbackFormat = loopbackFormat ?? existing?.LoopbackFormat,
             MicrophoneStartOffsetTicks = session.MicrophoneStartOffsetTicks,

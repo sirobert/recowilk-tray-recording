@@ -72,7 +72,13 @@ public sealed class RecordingRecoveryService : IRecordingRecoveryService
                 LoopbackFileSize = entry.loopSize,
                 HasValidMicrophoneFile = hasMic,
                 HasValidLoopbackFile = hasLoop,
-                DetectedAt = manifest?.StartedAt ?? GetOldestWriteTime(entry.mic, entry.loop)
+                DetectedAt = manifest?.StartedAt ?? GetOldestWriteTime(entry.mic, entry.loop),
+                MicrophoneDeviceId = manifest?.MicrophoneDeviceId ?? string.Empty,
+                OutputDeviceId = manifest?.OutputDeviceId ?? string.Empty,
+                SettingsSnapshot = manifest?.SettingsSnapshot,
+                MicrophoneStartOffsetTicks = manifest?.MicrophoneStartOffsetTicks ?? 0,
+                LoopbackStartOffsetTicks = manifest?.LoopbackStartOffsetTicks ?? 0,
+                DurationTicks = manifest?.DurationTicks
             });
         }
 
@@ -113,7 +119,13 @@ public sealed class RecordingRecoveryService : IRecordingRecoveryService
             MicrophoneFileSize = repairedMic is null ? 0 : new FileInfo(repairedMic).Length,
             LoopbackFileSize = repairedLoop is null ? 0 : new FileInfo(repairedLoop).Length,
             HasValidMicrophoneFile = repairedMic is not null,
-            HasValidLoopbackFile = repairedLoop is not null
+            HasValidLoopbackFile = repairedLoop is not null,
+            MicrophoneDeviceId = recoverable.MicrophoneDeviceId,
+            OutputDeviceId = recoverable.OutputDeviceId,
+            SettingsSnapshot = recoverable.SettingsSnapshot,
+            MicrophoneStartOffsetTicks = recoverable.MicrophoneStartOffsetTicks,
+            LoopbackStartOffsetTicks = recoverable.LoopbackStartOffsetTicks,
+            DurationTicks = recoverable.DurationTicks
         };
     }
 

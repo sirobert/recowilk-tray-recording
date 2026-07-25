@@ -61,7 +61,7 @@ public sealed class JsonRecordingSessionManifestStore : IRecordingSessionManifes
         {
             var json = File.ReadAllText(path);
             var manifest = JsonSerializer.Deserialize<RecordingSessionManifest>(json, JsonOptions);
-            return manifest is { Version: 1 } && manifest.RecordingId == recordingId ? manifest : null;
+            return manifest is { Version: 1 or 2 } && manifest.RecordingId == recordingId ? manifest : null;
         }
         catch (Exception ex)
         {

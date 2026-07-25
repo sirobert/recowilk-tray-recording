@@ -69,6 +69,16 @@
 5. Zapisz z logu dla obu ścieżek: liczbę ramek źródłowych/docelowych, zmierzony dryf ppm, zastosowaną korekcję ppm i informację o ograniczeniu.
 6. Powtórz dla co najmniej pary urządzeń przewodowych i Bluetooth oraz kombinacji 44,1/48 kHz.
 
+### 7C. R-006 — snapshot ustawień aktywnej sesji
+
+1. Ustaw folder A, bitrate 128 kb/s, 44,1 kHz, rozpoznawalne poziomy miksu i wyłącz osobne ścieżki.
+2. Rozpocznij nagrywanie, następnie w ustawieniach wybierz folder B, 320 kb/s, 48 kHz, inne poziomy i włącz osobne ścieżki.
+3. Zatrzymaj nagranie; wynik bieżącej sesji ma trafić do folderu A i używać parametrów ustawionych przed startem.
+4. Rozpocznij drugie nagranie; dopiero ono ma użyć folderu B i nowych parametrów, w tym osobnych ścieżek.
+5. Podczas nagrania zmień wybrane urządzenie w ustawieniach, a następnie odłącz urządzenie faktycznie użyte przy starcie.
+6. Oczekiwane: monitoring reaguje na utratę urządzenia z `CurrentSession`, bez względu na nowy wybór zapisany w ustawieniach.
+7. Powtórz scenariusz z wymuszonym zamknięciem procesu; recovery z manifestu v2 ma użyć folderu i parametrów pierwotnej sesji.
+
 ## 8. Odłączenie urządzenia podczas nagrywania
 
 1. Start nagrywania.

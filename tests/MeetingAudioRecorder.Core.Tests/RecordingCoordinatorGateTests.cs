@@ -14,12 +14,20 @@ public class RecordingCoordinatorGateTests
     private static RecordingCoordinator CreateCoordinator(
         Mock<IMicrophoneCaptureService>? mic = null,
         Mock<ILoopbackCaptureService>? loop = null,
-        AppSettings? settings = null)
+        AppSettings? settings = null,
+        Mock<IAudioMixingService>? mixing = null,
+        Mock<IMp3EncodingService>? encoding = null)
     {
-        settings ??= AppSettings.CreateDefault();
-        settings.MicrophoneDeviceId = "mic-1";
-        settings.OutputDeviceId = "out-1";
-        settings.RecordingsDirectory = Path.Combine(Path.GetTempPath(), "mar-coord-" + Guid.NewGuid().ToString("N"));
+        if (settings is null)
+        {
+            settings = AppSettings.CreateDefault();
+            settings.MicrophoneDeviceId = "mic-1";
+            settings.OutputDeviceId = "out-1";
+            settings.RecordingsDirectory = Path.Combine(
+                Path.GetTempPath(),
+                "mar-coord-" + Guid.NewGuid().ToString("N"));
+        }
+
         Directory.CreateDirectory(settings.RecordingsDirectory);
 
         var settingsService = new Mock<ISettingsService>();
@@ -58,17 +66,23 @@ public class RecordingCoordinatorGateTests
         loop.Setup(m => m.StopAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         loop.Setup(m => m.DisposeAsync()).Returns(ValueTask.CompletedTask);
 
-        var mixing = new Mock<IAudioMixingService>();
-        mixing.Setup(m => m.MixToWavAsync(It.IsAny<MixRequest>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        if (mixing is null)
+        {
+            mixing = new Mock<IAudioMixingService>();
+            mixing.Setup(m => m.MixToWavAsync(It.IsAny<MixRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+        }
 
-        var encoding = new Mock<IMp3EncodingService>();
-        encoding.Setup(e => e.EncodeToMp3Async(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .Returns<string, string, int, CancellationToken>((_, outPath, _, _) =>
-            {
-                File.WriteAllBytes(outPath, new byte[256]);
-                return Task.CompletedTask;
-            });
+        if (encoding is null)
+        {
+            encoding = new Mock<IMp3EncodingService>();
+            encoding.Setup(e => e.EncodeToMp3Async(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .Returns<string, string, int, CancellationToken>((_, outPath, _, _) =>
+                {
+                    File.WriteAllBytes(outPath, new byte[256]);
+                    return Task.CompletedTask;
+                });
+        }
 
         var disk = new Mock<IDiskSpaceService>();
         disk.Setup(d => d.HasEnoughSpace(It.IsAny<string>(), It.IsAny<long>(), out It.Ref<long>.IsAny))
@@ -89,6 +103,80 @@ public class RecordingCoordinatorGateTests
             disk.Object,
             Mock.Of<IRecordingSessionManifestStore>(),
             NullLogger<RecordingCoordinator>.Instance);
+    }
+
+    [Fact]
+    public async Task SettingsChangedDuringRecording_DoNotAffectActiveSession()
+    {
+        var originalDirectory = Path.Combine(Path.GetTempPath(), "mar-snapshot-" + Guid.NewGuid().ToString("N"));
+        var changedDirectory = Path.Combine(Path.GetTempPath(), "mar-snapshot-changed-" + Guid.NewGuid().ToString("N"));
+        var settings = AppSettings.CreateDefault();
+        settings.MicrophoneDeviceId = "mic-1";
+        settings.OutputDeviceId = "out-1";
+        settings.RecordingsDirectory = originalDirectory;
+        settings.TargetSampleRate = 44100;
+        settings.Mp3BitrateKbps = 128;
+        settings.MicrophoneVolume = 0.6;
+        settings.LoopbackVolume = 0.7;
+        settings.KeepSeparateTracks = false;
+        settings.FileNameFormat = "Snapshot_yyyy-MM-dd_HH-mm-ss.mp3";
+
+        MixRequest? capturedMix = null;
+        int? capturedBitrate = null;
+        var mixing = new Mock<IAudioMixingService>();
+        mixing.Setup(m => m.MixToWavAsync(It.IsAny<MixRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<MixRequest, CancellationToken>((request, _) => capturedMix = request)
+            .Returns(Task.CompletedTask);
+        var encoding = new Mock<IMp3EncodingService>();
+        encoding.Setup(e => e.EncodeToMp3Async(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, int, CancellationToken>((_, output, bitrate, _) =>
+            {
+                capturedBitrate = bitrate;
+                File.WriteAllBytes(output, new byte[256]);
+            })
+            .Returns(Task.CompletedTask);
+
+        await using var coordinator = CreateCoordinator(
+            settings: settings,
+            mixing: mixing,
+            encoding: encoding);
+        await coordinator.StartRecordingAsync();
+        var session = coordinator.CurrentSession!;
+
+        settings.MicrophoneDeviceId = "mic-2";
+        settings.OutputDeviceId = "out-2";
+        settings.RecordingsDirectory = changedDirectory;
+        settings.TargetSampleRate = 48000;
+        settings.Mp3BitrateKbps = 320;
+        settings.MicrophoneVolume = 1.5;
+        settings.LoopbackVolume = 1.6;
+        settings.KeepSeparateTracks = true;
+        settings.FileNameFormat = "Changed_yyyy-MM-dd_HH-mm-ss.mp3";
+
+        File.WriteAllBytes(session.MicrophoneTempPath, new byte[100]);
+        File.WriteAllBytes(session.LoopbackTempPath, new byte[100]);
+        var result = await coordinator.StopRecordingAsync();
+
+        Assert.True(result.Success);
+        Assert.StartsWith(originalDirectory, result.OutputPath, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("mic-1", session.MicrophoneDeviceId);
+        Assert.Equal("out-1", session.OutputDeviceId);
+        Assert.Equal(originalDirectory, session.SettingsSnapshot.RecordingsDirectory);
+        Assert.NotNull(capturedMix);
+        Assert.Equal(44100, capturedMix.TargetSampleRate);
+        Assert.Equal(0.6, capturedMix.MicrophoneVolume);
+        Assert.Equal(0.7, capturedMix.LoopbackVolume);
+        Assert.False(capturedMix.KeepSeparateTracks);
+        Assert.Equal(128, capturedBitrate);
+
+        try { Directory.Delete(originalDirectory, recursive: true); }
+        catch { /* best effort */ }
+        try { Directory.Delete(changedDirectory, recursive: true); }
+        catch { /* best effort */ }
     }
 
     [Fact]

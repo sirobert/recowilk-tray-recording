@@ -13,4 +13,10 @@ public sealed class RecoverableRecording
     public long LoopbackFileSize { get; init; }
     public bool HasValidMicrophoneFile { get; init; }
     public bool HasValidLoopbackFile { get; init; }
+    public string MicrophoneDeviceId { get; init; } = string.Empty;
+    public string OutputDeviceId { get; init; } = string.Empty;
+    public RecordingSettingsSnapshot? SettingsSnapshot { get; init; }
+    public long MicrophoneStartOffsetTicks { get; init; }
+    public long LoopbackStartOffsetTicks { get; init; }
+    public long? DurationTicks { get; init; }
 }
