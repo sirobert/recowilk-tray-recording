@@ -38,10 +38,12 @@ public sealed class AudioMixingService : IAudioMixingService
         using var loopReader = OpenReaderOrSilence(request.LoopbackWavPath, targetFormat);
 
         var micProvider = BuildPipeline(micReader, targetFormat, request.MicrophoneVolume,
-            request.MicrophoneStartOffsetTicks, request.LoopbackStartOffsetTicks, request.TargetSampleRate);
+            request.MicrophoneStartOffsetTicks, request.LoopbackStartOffsetTicks,
+            request.ExpectedDurationTicks, request.TargetSampleRate, "mikrofon");
 
         var loopProvider = BuildPipeline(loopReader, targetFormat, request.LoopbackVolume,
-            request.LoopbackStartOffsetTicks, request.MicrophoneStartOffsetTicks, request.TargetSampleRate);
+            request.LoopbackStartOffsetTicks, request.MicrophoneStartOffsetTicks,
+            request.ExpectedDurationTicks, request.TargetSampleRate, "loopback");
 
         // ReadFully=false — mikser kończy się, gdy oba źródła się wyczerpią (nie generuje nieskończonej ciszy)
         var mixer = new MixingSampleProvider(targetFormat) { ReadFully = false };
@@ -60,7 +62,8 @@ public sealed class AudioMixingService : IAudioMixingService
             {
                 using var r = OpenReaderOrSilence(request.MicrophoneWavPath, targetFormat);
                 var p = BuildPipeline(r, targetFormat, 1.0,
-                    request.MicrophoneStartOffsetTicks, request.LoopbackStartOffsetTicks, request.TargetSampleRate);
+                    request.MicrophoneStartOffsetTicks, request.LoopbackStartOffsetTicks,
+                    request.ExpectedDurationTicks, request.TargetSampleRate, "mikrofon-osobno");
                 WriteTo16BitWav(request.SeparateMicrophoneOutputPath, p);
             }
 
@@ -68,7 +71,8 @@ public sealed class AudioMixingService : IAudioMixingService
             {
                 using var r = OpenReaderOrSilence(request.LoopbackWavPath, targetFormat);
                 var p = BuildPipeline(r, targetFormat, 1.0,
-                    request.LoopbackStartOffsetTicks, request.MicrophoneStartOffsetTicks, request.TargetSampleRate);
+                    request.LoopbackStartOffsetTicks, request.MicrophoneStartOffsetTicks,
+                    request.ExpectedDurationTicks, request.TargetSampleRate, "loopback-osobno");
                 WriteTo16BitWav(request.SeparateLoopbackOutputPath, p);
             }
         }
@@ -87,15 +91,19 @@ public sealed class AudioMixingService : IAudioMixingService
             writer.Write(buffer, 0, read);
     }
 
-    private static ISampleProvider BuildPipeline(
+    private ISampleProvider BuildPipeline(
         WaveStream reader,
         WaveFormat targetFormat,
         double volume,
         long thisStartTicks,
         long otherStartTicks,
-        int targetSampleRate)
+        long expectedDurationTicks,
+        int targetSampleRate,
+        string trackLabel)
     {
         ISampleProvider sample = reader.ToSampleProvider();
+        var nominalSampleRate = sample.WaveFormat.SampleRate;
+        var sourceFrames = (long)Math.Round(reader.TotalTime.TotalSeconds * nominalSampleRate);
 
         // Kanały → stereo
         if (sample.WaveFormat.Channels == 1)
@@ -103,9 +111,49 @@ public sealed class AudioMixingService : IAudioMixingService
         else if (sample.WaveFormat.Channels > 2)
             sample = new StereoDownmixSampleProvider(sample);
 
-        // Resampling
-        if (sample.WaveFormat.SampleRate != targetFormat.SampleRate)
-            sample = new WdlResamplingSampleProvider(sample, targetFormat.SampleRate);
+        // Korekcja dryfu zegara urządzenia względem monotonicznego czasu sesji.
+        // Jest rozłożona równomiernie na cały materiał przez ułamkowy resampling.
+        var effectiveInputRate = (double)nominalSampleRate;
+        var shouldCorrectDrift = false;
+        var referenceTicks = Math.Min(thisStartTicks, otherStartTicks);
+        var leadingDelayTicks = Math.Max(0, thisStartTicks - referenceTicks);
+        var targetContentTicks = Math.Max(0, expectedDurationTicks - leadingDelayTicks);
+
+        if (targetContentTicks > 0 && sourceFrames > 0)
+        {
+            var targetFrames = (long)Math.Round(
+                TimeSpan.FromTicks(targetContentTicks).TotalSeconds * nominalSampleRate);
+            if (targetFrames > 0)
+            {
+                var correction = DriftCorrectionCalculator.Calculate(
+                    sourceFrames,
+                    targetFrames,
+                    nominalSampleRate,
+                    maximumCorrectionPpm: 1_000,
+                    minimumDrift: TimeSpan.FromMilliseconds(50));
+
+                effectiveInputRate = correction.EffectiveInputRate;
+                shouldCorrectDrift = correction.ShouldCorrect;
+
+                _logger.LogInformation(
+                    "Dryf ścieżki {Track}: source={SourceFrames}, target={TargetFrames}, " +
+                    "measured={MeasuredPpm:F1}ppm, applied={AppliedPpm:F1}ppm, limited={Limited}",
+                    trackLabel,
+                    correction.SourceFrames,
+                    correction.TargetFrames,
+                    correction.MeasuredDriftPpm,
+                    correction.AppliedCorrectionPpm,
+                    correction.WasLimited);
+            }
+        }
+
+        if (shouldCorrectDrift || nominalSampleRate != targetFormat.SampleRate)
+        {
+            sample = new PrecisionResamplingSampleProvider(
+                sample,
+                effectiveInputRate,
+                targetFormat.SampleRate);
+        }
 
         // Głośność
         if (Math.Abs(volume - 1.0) > 0.0001)
@@ -116,7 +164,6 @@ public sealed class AudioMixingService : IAudioMixingService
 
         // Cisza na początku jeśli to źródło wystartowało później
         // reference = wcześniejszy start
-        var referenceTicks = Math.Min(thisStartTicks, otherStartTicks);
         if (thisStartTicks == 0 && otherStartTicks == 0)
             return sample;
 

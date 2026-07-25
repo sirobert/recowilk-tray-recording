@@ -235,7 +235,14 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
             _durationTimer = null;
             _durationWatch?.Stop();
             session.StoppedAt = DateTimeOffset.Now;
-            session.Duration = _durationWatch?.Elapsed ?? TimeSpan.Zero;
+            var stoppedAtMonotonicTicks = (long)(
+                Stopwatch.GetTimestamp() *
+                (TimeSpan.TicksPerSecond / (double)Stopwatch.Frequency));
+            session.Duration = RecordingTimeCalculator.CalculateCaptureDuration(
+                stoppedAtMonotonicTicks,
+                session.MicrophoneStartOffsetTicks,
+                session.LoopbackStartOffsetTicks,
+                _durationWatch?.Elapsed ?? TimeSpan.Zero);
             SaveManifest(session, state: "processing");
 
             try
@@ -387,6 +394,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
                 OutputWavPath = mixedWav,
                 MicrophoneStartOffsetTicks = session.MicrophoneStartOffsetTicks,
                 LoopbackStartOffsetTicks = session.LoopbackStartOffsetTicks,
+                ExpectedDurationTicks = session.Duration?.Ticks ?? 0,
                 TargetSampleRate = settings.TargetSampleRate,
                 MicrophoneVolume = settings.MicrophoneVolume,
                 LoopbackVolume = settings.LoopbackVolume,

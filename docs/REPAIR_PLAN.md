@@ -65,6 +65,8 @@ Status: implementacja i testy automatyczne zakończone; kontrolowany test pełne
 
 #### R-005: korekcja dryfu
 
+Status: implementacja i testy automatyczne zakończone; 4-godzinny test sprzętowy oczekuje na wykonanie.
+
 - Mierz ramki obu źródeł względem wspólnego zegara monotonicznego.
 - Zdefiniuj próg korekcji oraz ogranicz jej tempo.
 - Unikaj gwałtownych insert/drop słyszalnych jako kliknięcia.
@@ -118,3 +120,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-07-26 | R-002 | Zerwany WAV float 48 kHz stereo | 45/45 testów; odzysk 250 ms, idempotencja | Oryginał niezmieniony; wymagany test zabicia procesu |
 | 2026-07-26 | R-003 | Polityka zamknięcia i dispose | 55/55 testów; build bez ostrzeżeń | Brak synchronicznego wait/dispatcher; wymagany test tray |
 | 2026-07-26 | R-004 | Budżet capture/processing | 59/59 testów; 48 kHz, MP3, osobne WAV | Monitoring co 5 s; wymagany test małego woluminu |
+| 2026-07-26 | R-005 | Dryf zegara i ułamkowy resampling | 67/67 testów; próg 50 ms, limit 1000 ppm | Korekcja płynna względem monotonicznego czasu sesji; wymagany test 4 h |

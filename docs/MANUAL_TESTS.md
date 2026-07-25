@@ -60,6 +60,15 @@
 5. Porównaj czas WAV loopback/MP3 z czasem ściennym; różnica nie powinna przekroczyć jednego bufora capture.
 6. Powtórz dla 44,1 kHz i 48 kHz, zapisując urządzenie, format i zmierzoną różnicę.
 
+### 7B. R-005 — dryf zegarów urządzeń
+
+1. Przygotuj wspólny, łatwy do rozpoznania marker słyszalny jednocześnie przez mikrofon i loopback.
+2. Zarejestruj marker na początku, następnie nagrywaj 4 godziny i zarejestruj taki sam marker przed zatrzymaniem.
+3. Zmierz przesunięcie markerów obu ścieżek na początku i końcu; dryf końcowy nie może przekroczyć 250 ms, celem jest 100 ms.
+4. Sprawdź odsłuch całego materiału w kilku miejscach; korekcja nie może powodować kliknięć ani gwałtownych przeskoków.
+5. Zapisz z logu dla obu ścieżek: liczbę ramek źródłowych/docelowych, zmierzony dryf ppm, zastosowaną korekcję ppm i informację o ograniczeniu.
+6. Powtórz dla co najmniej pary urządzeń przewodowych i Bluetooth oraz kombinacji 44,1/48 kHz.
+
 ## 8. Odłączenie urządzenia podczas nagrywania
 
 1. Start nagrywania.

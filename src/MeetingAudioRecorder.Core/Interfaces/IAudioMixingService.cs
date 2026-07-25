@@ -15,6 +15,7 @@ public sealed class MixRequest
     public required string OutputWavPath { get; init; }
     public long MicrophoneStartOffsetTicks { get; init; }
     public long LoopbackStartOffsetTicks { get; init; }
+    public long ExpectedDurationTicks { get; init; }
     public int TargetSampleRate { get; init; } = 48000;
     public double MicrophoneVolume { get; init; } = 1.0;
     public double LoopbackVolume { get; init; } = 0.85;
