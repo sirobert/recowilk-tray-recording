@@ -104,6 +104,12 @@ public partial class App : Application
         coordinator.StateChanged += (_, args) =>
         {
             _trayIcons?.Update(args.Current, coordinator.CurrentDuration, args.Message);
+            if (args.Previous == AppRecordingState.Recording
+                && args.Current == AppRecordingState.Recording
+                && !string.IsNullOrWhiteSpace(args.Message))
+            {
+                notificationService.ShowWarning("Mało miejsca na dysku", args.Message);
+            }
         };
         coordinator.DurationUpdated += (_, duration) =>
         {

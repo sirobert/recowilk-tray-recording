@@ -10,7 +10,6 @@ public interface IFileNameService
 public interface IDiskSpaceService
 {
     bool HasEnoughSpace(string directory, long requiredBytes, out long availableBytes);
-    long EstimateRequiredBytes(TimeSpan estimatedDuration, int bitrateKbps);
 }
 
 public interface ISingleInstanceService : IDisposable

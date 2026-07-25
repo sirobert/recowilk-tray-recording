@@ -237,7 +237,7 @@ public partial class TrayViewModel : ObservableObject
             {
                 AppRecordingState.Idle => "Gotowy",
                 AppRecordingState.Starting => "Uruchamianie…",
-                AppRecordingState.Recording => "Nagrywanie",
+                AppRecordingState.Recording => e.Message ?? "Nagrywanie",
                 AppRecordingState.Stopping => "Zatrzymywanie…",
                 AppRecordingState.Processing => "Przetwarzanie…",
                 AppRecordingState.Completed => "Zapisano",

@@ -29,6 +29,11 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
     private CancellationTokenSource? _recordingCts;
     private Stopwatch? _durationWatch;
     private Timer? _durationTimer;
+    private WaveFormatInfo? _microphoneFormat;
+    private WaveFormatInfo? _loopbackFormat;
+    private TimeSpan _lastDiskCheck;
+    private int _diskCheckInProgress;
+    private int _lowDiskStopRequested;
     private string? _lastError;
     private int _disposeState;
 
@@ -95,6 +100,8 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
             RaiseState(prev, AppRecordingState.Starting);
 
             var settings = _settingsService.Current;
+            _microphoneFormat = null;
+            _loopbackFormat = null;
             ValidateBeforeStart(settings);
 
             var recordingId = Guid.NewGuid();
@@ -133,17 +140,31 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
 
             _session.MicrophoneStartOffsetTicks = _micCapture.StartOffsetTicks;
             _session.LoopbackStartOffsetTicks = _loopbackCapture.StartOffsetTicks;
+            _microphoneFormat = _micCapture.CaptureFormat;
+            _loopbackFormat = _loopbackCapture.CaptureFormat;
             SaveManifest(
                 _session,
                 state: "recording",
-                microphoneFormat: _micCapture.CaptureFormat,
-                loopbackFormat: _loopbackCapture.CaptureFormat);
+                microphoneFormat: _microphoneFormat,
+                loopbackFormat: _loopbackFormat);
+
+            EnsureStorageAvailable(
+                settings,
+                duration: TimeSpan.FromMinutes(2),
+                sourceBytes: 0,
+                includeCaptureReserve: true);
 
             _durationWatch = Stopwatch.StartNew();
+            _lastDiskCheck = TimeSpan.Zero;
+            Interlocked.Exchange(ref _lowDiskStopRequested, 0);
             _durationTimer = new Timer(_ =>
             {
                 if (_durationWatch is not null)
-                    DurationUpdated?.Invoke(this, _durationWatch.Elapsed);
+                {
+                    var elapsed = _durationWatch.Elapsed;
+                    DurationUpdated?.Invoke(this, elapsed);
+                    CheckStorageDuringRecording(elapsed);
+                }
             }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
 
             if (!_stateMachine.TryTransition(AppRecordingState.Recording, out prev, out err))
@@ -326,10 +347,19 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
         // Upewnij się, że brakujące pliki to cisza (pusty WAV nie — mikser obsłuży brak jednego źródła)
         Directory.CreateDirectory(settings.RecordingsDirectory);
 
-        if (!_diskSpaceService.HasEnoughSpace(settings.RecordingsDirectory, 50 * 1024 * 1024, out var available))
+        var sourceBytes = GetFileLength(session.MicrophoneTempPath) + GetFileLength(session.LoopbackTempPath);
+        try
         {
-            _logger.LogError("Za mało miejsca na dysku: {Available} bajtów", available);
-            return RecordingResult.Fail(session.RecordingId, "Za mało miejsca na dysku, aby zapisać nagranie.");
+            EnsureStorageAvailable(
+                settings,
+                session.Duration ?? TimeSpan.Zero,
+                sourceBytes,
+                includeCaptureReserve: false);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Za mało miejsca na przetwarzanie nagrania");
+            return RecordingResult.Fail(session.RecordingId, ex.Message);
         }
 
         var fileName = _fileNameService.GenerateFileName(settings.FileNameFormat, session.StartedAt);
@@ -436,12 +466,135 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
         }
 
         Directory.CreateDirectory(settings.RecordingsDirectory);
-        if (!_diskSpaceService.HasEnoughSpace(settings.RecordingsDirectory, 100 * 1024 * 1024, out _))
-            throw new InvalidOperationException("Za mało miejsca na dysku, aby rozpocząć nagrywanie (wymagane min. 100 MB).");
+        EnsureStorageAvailable(
+            settings,
+            duration: TimeSpan.FromMinutes(2),
+            sourceBytes: 0,
+            includeCaptureReserve: true);
     }
 
     private void OnMicLevel(object? sender, AudioLevelEventArgs e) => MicrophoneLevelChanged?.Invoke(this, e);
     private void OnLoopLevel(object? sender, AudioLevelEventArgs e) => LoopbackLevelChanged?.Invoke(this, e);
+
+    private void CheckStorageDuringRecording(TimeSpan elapsed)
+    {
+        if (State != AppRecordingState.Recording
+            || elapsed - _lastDiskCheck < TimeSpan.FromSeconds(5)
+            || Interlocked.CompareExchange(ref _diskCheckInProgress, 1, 0) != 0)
+        {
+            return;
+        }
+
+        _lastDiskCheck = elapsed;
+        try
+        {
+            var session = _session;
+            if (session is null)
+                return;
+
+            var sourceBytes = GetFileLength(session.MicrophoneTempPath) + GetFileLength(session.LoopbackTempPath);
+            EnsureStorageAvailable(
+                _settingsService.Current,
+                elapsed,
+                sourceBytes,
+                includeCaptureReserve: true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            if (Interlocked.Exchange(ref _lowDiskStopRequested, 1) != 0)
+                return;
+
+            var message = ex.Message + " Nagrywanie zostanie bezpiecznie zatrzymane.";
+            if (_session is not null)
+                _session.ErrorMessage = message;
+            _logger.LogError("{Message}", message);
+            RaiseState(AppRecordingState.Recording, AppRecordingState.Recording, message);
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await StopRecordingAsync().ConfigureAwait(false);
+                }
+                catch (Exception stopEx)
+                {
+                    _logger.LogError(stopEx, "Awaryjny stop po wyczerpaniu miejsca");
+                }
+            });
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _diskCheckInProgress, 0);
+        }
+    }
+
+    private void EnsureStorageAvailable(
+        AppSettings settings,
+        TimeSpan duration,
+        long sourceBytes,
+        bool includeCaptureReserve)
+    {
+        var processing = StorageBudgetCalculator.CalculateProcessingBudget(
+            duration,
+            sourceBytes,
+            settings.TargetSampleRate,
+            settings.Mp3BitrateKbps,
+            settings.KeepSeparateTracks);
+        var captureReserve = includeCaptureReserve
+            ? StorageBudgetCalculator.CalculateCaptureReserve(
+                _microphoneFormat,
+                _loopbackFormat,
+                TimeSpan.FromMinutes(1))
+            : 0;
+        var tempRequired = checked(processing.TempAdditionalBytes + captureReserve);
+        var outputRequired = processing.OutputAdditionalBytes;
+
+        if (PathsShareVolume(AppPaths.TempDirectory, settings.RecordingsDirectory))
+        {
+            var required = checked(tempRequired + outputRequired);
+            if (!_diskSpaceService.HasEnoughSpace(settings.RecordingsDirectory, required, out var available))
+                throw BuildDiskSpaceException(required, available);
+            return;
+        }
+
+        if (!_diskSpaceService.HasEnoughSpace(AppPaths.TempDirectory, tempRequired, out var tempAvailable))
+            throw BuildDiskSpaceException(tempRequired, tempAvailable);
+        if (!_diskSpaceService.HasEnoughSpace(settings.RecordingsDirectory, outputRequired, out var outputAvailable))
+            throw BuildDiskSpaceException(outputRequired, outputAvailable);
+    }
+
+    private static InvalidOperationException BuildDiskSpaceException(long required, long available)
+        => new(
+            $"Za mało miejsca na dysku. Wymagane: {FormatBytes(required)}, dostępne: {FormatBytes(available)}.");
+
+    private static string FormatBytes(long bytes)
+        => $"{bytes / (1024.0 * 1024):F0} MB";
+
+    private static bool PathsShareVolume(string first, string second)
+    {
+        try
+        {
+            var firstRoot = Path.GetPathRoot(Path.GetFullPath(first));
+            var secondRoot = Path.GetPathRoot(Path.GetFullPath(second));
+            return string.Equals(firstRoot, secondRoot, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static long GetFileLength(string? path)
+    {
+        try
+        {
+            return !string.IsNullOrEmpty(path) && File.Exists(path) ? new FileInfo(path).Length : 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
 
     private void SaveManifest(
         RecordingSessionInfo session,

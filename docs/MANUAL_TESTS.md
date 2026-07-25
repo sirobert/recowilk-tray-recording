@@ -72,6 +72,16 @@
 1. Wskaż folder na dysku z bardzo małą ilością miejsca (lub użyj małej partycji testowej).
 2. Start powinien zostać zablokowany z czytelnym komunikatem **albo** zapis kończy się błędem bez utraty temp.
 
+### 9A. R-004 — monitoring w trakcie
+
+1. Użyj kontrolowanego małego woluminu; nie zapełniaj dysku systemowego.
+2. Rozpocznij nagranie przy przestrzeni większej od budżetu startowego.
+3. W trakcie nagrania zmniejsz wolną przestrzeń poniżej wartości potrzebnej na kolejną minutę i processing.
+4. Oczekiwane w ciągu około 5 s: jedno ostrzeżenie, pojedynczy automatyczny stop, brak zawieszenia.
+5. Jeśli miks jest możliwy, sprawdź MP3. Jeśli nie, potwierdź zachowanie obu WAV i manifestu do recovery.
+6. Powtórz z Temp i folderem nagrań na różnych woluminach oraz na tym samym woluminie.
+7. Powtórz z `keepSeparateTracks=true`; wymagany budżet powinien uwzględniać dwa dodatkowe WAV.
+
 ## 10. Wybudzenie ze snu
 
 1. Start nagrywania.
