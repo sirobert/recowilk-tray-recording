@@ -51,6 +51,15 @@
 2. Sprawdź brak dryfu (głos i loopback zsynchronizowane na końcu).
 3. UI pozostaje responsywne; tray pokazuje czas.
 
+### 7A. R-001 — luki loopback i granica callbacka
+
+1. Uruchom nagranie i odtwarzaj sygnał z krótkim markerem co 1 s przez 60 s.
+2. Zatrzymaj odtwarzanie na 10 s, nie zatrzymując nagrania.
+3. Wznów sygnał na kolejne 60 s i zakończ nagranie.
+4. Oczekiwane: dokładnie około 10 s ciszy, bez dodatkowych bloków ciszy przed markerami.
+5. Porównaj czas WAV loopback/MP3 z czasem ściennym; różnica nie powinna przekroczyć jednego bufora capture.
+6. Powtórz dla 44,1 kHz i 48 kHz, zapisując urządzenie, format i zmierzoną różnicę.
+
 ## 8. Odłączenie urządzenia podczas nagrywania
 
 1. Start nagrywania.

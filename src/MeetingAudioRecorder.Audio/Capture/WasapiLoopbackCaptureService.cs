@@ -9,7 +9,7 @@ namespace MeetingAudioRecorder.Audio.Capture;
 
 /// <summary>
 /// WASAPI Loopback — przechwytuje cały dźwięk wysyłany do wybranego urządzenia Render.
-/// Uzupełnia ciszę, gdy callback nie dostarcza danych (brak odtwarzania).
+/// Uzupełnia potwierdzone luki ciszą na podstawie monotonicznej osi czasu ramek.
 /// </summary>
 public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
 {
@@ -22,9 +22,8 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
     private long _samplesWritten;
     private long _startOffsetTicks;
     private WaveFormat? _format;
-    private Timer? _silenceTimer;
-    private long _lastDataTimestamp;
     private int _bytesPerFrame;
+    private LoopbackFrameTimeline? _timeline;
     private readonly Stopwatch _wallClock = new();
 
     public WasapiLoopbackCaptureService(ILogger<WasapiLoopbackCaptureService> logger)
@@ -76,14 +75,13 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
                 _startOffsetTicks = Stopwatch.GetTimestamp();
                 _startOffsetTicks = (long)(_startOffsetTicks * (TimeSpan.TicksPerSecond / (double)Stopwatch.Frequency));
                 _samplesWritten = 0;
-                _lastDataTimestamp = Stopwatch.GetTimestamp();
+                _timeline = new LoopbackFrameTimeline(
+                    _format.SampleRate,
+                    gapToleranceFrames: _format.SampleRate / 20); // 50 ms tolerancji opóźnienia callbacka
                 _wallClock.Restart();
 
                 _capture.StartRecording();
                 _isCapturing = true;
-
-                // Co 100 ms sprawdzaj, czy trzeba dopisać ciszę
-                _silenceTimer = new Timer(FillSilenceIfNeeded, null, 100, 100);
 
                 _logger.LogInformation(
                     "Loopback start: {Name}, format={Rate}Hz/{Ch}ch/{Bits}bit",
@@ -109,8 +107,9 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
             if (!_isCapturing || _capture is null)
                 return Task.CompletedTask;
 
-            _silenceTimer?.Dispose();
-            _silenceTimer = null;
+            // Ostatnia cisza jest znana dopiero przy stopie. Wypełnij ją przed
+            // StopRecording, ponieważ RecordingStopped może zamknąć writer.
+            FillSilenceToNowUnsafe();
 
             try
             {
@@ -121,8 +120,6 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
                 _logger.LogWarning(ex, "StopRecording loopback");
             }
 
-            // Dopisz brakującą ciszę do końca
-            FillSilenceToNowUnsafe();
             FinalizeWriter();
             _isCapturing = false;
             _logger.LogInformation("Loopback stop, próbek={Samples}", _samplesWritten);
@@ -140,15 +137,18 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
                 if (_writer is null || !_isCapturing)
                     return;
 
-                // Najpierw uzupełnij ciszę od ostatniego pakietu
-                FillSilenceToNowUnsafe();
-
                 if (e.BytesRecorded > 0)
                 {
-                    _writer.Write(e.Buffer, 0, e.BytesRecorded);
-                    var bps = Math.Max(1, (_format?.BitsPerSample ?? 32) / 8);
-                    Interlocked.Add(ref _samplesWritten, e.BytesRecorded / bps);
-                    _lastDataTimestamp = Stopwatch.GetTimestamp();
+                    var audioBytes = e.BytesRecorded - e.BytesRecorded % _bytesPerFrame;
+                    var audioFrames = audioBytes / _bytesPerFrame;
+                    var plan = _timeline!.PlanPacket(_wallClock.Elapsed.Ticks, audioFrames);
+
+                    WriteSilenceFramesUnsafe(plan.SilenceFrames);
+                    if (audioBytes > 0)
+                    {
+                        _writer.Write(e.Buffer, 0, audioBytes);
+                        Interlocked.Add(ref _samplesWritten, (long)audioFrames * _format!.Channels);
+                    }
                 }
             }
 
@@ -164,55 +164,35 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
         }
     }
 
-    private void FillSilenceIfNeeded(object? state)
-    {
-        try
-        {
-            lock (_sync)
-            {
-                if (!_isCapturing || _writer is null || _format is null)
-                    return;
-                FillSilenceToNowUnsafe();
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "FillSilence");
-        }
-    }
-
     /// <summary>
-    /// Uzupełnia ścieżkę zerowymi próbkami tak, aby długość pliku odpowiadała czasowi ściennemu.
+    /// Domyka ścieżkę do czasu ściennego. Wywoływać tylko przy zatrzymaniu,
+    /// gdy żaden przyszły pakiet nie może już reprezentować tego przedziału.
     /// </summary>
     private void FillSilenceToNowUnsafe()
     {
-        if (_writer is null || _format is null || _bytesPerFrame <= 0)
+        if (_writer is null || _format is null || _timeline is null || _bytesPerFrame <= 0)
             return;
 
-        var expectedBytes = (long)(_wallClock.Elapsed.TotalSeconds * _format.AverageBytesPerSecond);
-        var missing = expectedBytes - _writer.Length;
-        if (missing < _bytesPerFrame)
+        var missingFrames = _timeline.PlanCompletion(_wallClock.Elapsed.Ticks);
+        WriteSilenceFramesUnsafe(missingFrames);
+    }
+
+    private void WriteSilenceFramesUnsafe(long frames)
+    {
+        if (_writer is null || _format is null || frames <= 0)
             return;
 
-        // Zaokrąglij w dół do pełnych ramek
-        missing -= missing % _bytesPerFrame;
-        if (missing <= 0)
-            return;
-
-        // Pisz ciszę w kawałkach
-        var chunk = new byte[Math.Min(missing, _format.AverageBytesPerSecond / 2)]; // max ~0.5 s
-        while (missing > 0)
+        var maxChunkBytes = Math.Max(_bytesPerFrame, _format.AverageBytesPerSecond / 2);
+        maxChunkBytes -= maxChunkBytes % _bytesPerFrame;
+        var chunk = new byte[maxChunkBytes];
+        while (frames > 0)
         {
-            var toWrite = (int)Math.Min(chunk.Length, missing);
-            toWrite -= toWrite % _bytesPerFrame;
-            if (toWrite <= 0) break;
-            _writer.Write(chunk, 0, toWrite);
-            var bps = Math.Max(1, _format.BitsPerSample / 8);
-            Interlocked.Add(ref _samplesWritten, toWrite / bps);
-            missing -= toWrite;
+            var framesInChunk = (int)Math.Min(frames, chunk.Length / _bytesPerFrame);
+            var bytesToWrite = framesInChunk * _bytesPerFrame;
+            _writer.Write(chunk, 0, bytesToWrite);
+            Interlocked.Add(ref _samplesWritten, (long)framesInChunk * _format.Channels);
+            frames -= framesInChunk;
         }
-
-        _lastDataTimestamp = Stopwatch.GetTimestamp();
     }
 
     private void RaiseLevel(byte[] buffer, int bytesRecorded)
@@ -284,9 +264,6 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
 
     private void CleanupUnsafe()
     {
-        _silenceTimer?.Dispose();
-        _silenceTimer = null;
-
         if (_capture is not null)
         {
             _capture.DataAvailable -= OnDataAvailable;
@@ -299,6 +276,7 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
         _writer = null;
         try { _device?.Dispose(); } catch { /* ignore */ }
         _device = null;
+        _timeline = null;
         _isCapturing = false;
     }
 

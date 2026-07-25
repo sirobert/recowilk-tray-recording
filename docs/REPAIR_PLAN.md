@@ -20,6 +20,8 @@ Doprowadzić aplikację do stanu, w którym krótkie i wielogodzinne nagrania za
 
 #### R-001: deterministyczna oś czasu loopback
 
+Status: implementacja i testy automatyczne zakończone; test sprzętowy oczekuje na wykonanie.
+
 - Oddziel wykrywanie braku callbacków od zapisywania aktywnego pakietu.
 - Modeluj pozycję zapisu w ramkach audio.
 - Nie dopisuj ciszy za okres reprezentowany przez nadchodzący bufor.
@@ -106,4 +108,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | Data | Zadanie | Środowisko | Wynik | Dowód/uwagi |
 |---|---|---|---|---|
 | 2026-07-26 | Baseline | .NET 8, Windows | 36/36 testów, build 0 ostrzeżeń | Analiza statyczna; bez testu urządzeń |
-
+| 2026-07-26 | R-001 | Testy syntetyczne 44,1/48 kHz | 41/41 testów; 10 min z dokładnością do ramki | Usunięto spekulacyjny timer; wymagany test WASAPI na urządzeniu |
