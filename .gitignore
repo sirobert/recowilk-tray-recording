@@ -1,0 +1,31 @@
+## Build
+bin/
+obj/
+publish/
+out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## IDE
+.vs/
+.idea/
+*.swp
+*~
+
+## Logs / local
+*.log
+TestResults/
+*.trx
+*.wav
+*.mp3
+*.partial
+settings.json
+
+## Local AI/runtime state
+.codex/
+
+## OS
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,28 @@
+<Application x:Class="MeetingAudioRecorder.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:tb="http://www.hardcodet.net/taskbar"
+             ShutdownMode="OnExplicitShutdown">
+    <Application.Resources>
+        <tb:TaskbarIcon x:Key="TrayIcon"
+                        Visibility="Visible"
+                        ToolTipText="Meeting Audio Recorder"
+                        MenuActivation="RightClick"
+                        DoubleClickCommand="{Binding OpenSettingsCommand}">
+            <tb:TaskbarIcon.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Rozpocznij nagrywanie" Command="{Binding StartRecordingCommand}"
+                              IsEnabled="{Binding CanStart}"/>
+                    <MenuItem Header="Zatrzymaj nagrywanie" Command="{Binding StopRecordingCommand}"
+                              IsEnabled="{Binding CanStop}"/>
+                    <Separator/>
+                    <MenuItem Header="Ustawienia" Command="{Binding OpenSettingsCommand}"/>
+                    <MenuItem Header="Otwórz folder nagrań" Command="{Binding OpenRecordingsFolderCommand}"/>
+                    <MenuItem Header="Pokaż ostatnie nagranie" Command="{Binding ShowLastRecordingCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="Wyjście" Command="{Binding ExitCommand}"/>
+                </ContextMenu>
+            </tb:TaskbarIcon.ContextMenu>
+        </tb:TaskbarIcon>
+    </Application.Resources>
+</Application>

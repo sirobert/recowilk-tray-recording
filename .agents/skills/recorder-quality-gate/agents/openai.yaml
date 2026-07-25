@@ -1,0 +1,4 @@
+interface:
+  display_name: "Recorder Quality Gate"
+  short_description: "Weryfikuje build, testy i regresje aplikacji"
+  default_prompt: "Use $recorder-quality-gate to validate the current change before commit."

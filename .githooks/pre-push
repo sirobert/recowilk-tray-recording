@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+echo "Running pre-push test gate..."
+dotnet test MeetingAudioRecorder.sln -c Release --no-restore
+

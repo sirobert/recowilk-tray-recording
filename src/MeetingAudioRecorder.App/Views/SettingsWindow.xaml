@@ -1,0 +1,157 @@
+<Window x:Class="MeetingAudioRecorder.App.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Meeting Audio Recorder — Ustawienia"
+        Height="720" Width="640"
+        MinHeight="560" MinWidth="520"
+        WindowStartupLocation="CenterScreen"
+        Background="#F5F7FA">
+    <Window.Resources>
+        <Style TargetType="GroupBox">
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="Hint">
+            <Setter Property="Foreground" Value="#666"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,2,0,8"/>
+        </Style>
+        <Style TargetType="Button" x:Key="PrimaryButton">
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="MinWidth" Value="100"/>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel Margin="16">
+        <DockPanel DockPanel.Dock="Bottom" LastChildFill="False" Margin="0,8,0,0">
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center"
+                       Foreground="#333" TextWrapping="Wrap" MaxWidth="400"/>
+            <Button DockPanel.Dock="Right" Content="Zapisz"
+                    Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButton}"
+                    IsDefault="True"/>
+            <Button DockPanel.Dock="Right" Content="Zamknij" Click="Close_Click"
+                    Style="{StaticResource PrimaryButton}" IsCancel="True"/>
+        </DockPanel>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- Mikrofon -->
+                <GroupBox Header="Urządzenie wejściowe (mikrofon)">
+                    <StackPanel>
+                        <ComboBox ItemsSource="{Binding Microphones}"
+                                  SelectedItem="{Binding SelectedMicrophone}"
+                                  DisplayMemberPath="FriendlyName"
+                                  Margin="0,0,0,8"/>
+                        <DockPanel>
+                            <Button Content="Testuj mikrofon" Command="{Binding TestMicrophoneCommand}"
+                                    Padding="12,6" Margin="0,0,8,0"/>
+                            <Button Content="Odśwież listę" Command="{Binding RefreshDevicesCommand}"
+                                    Padding="12,6" DockPanel.Dock="Right"/>
+                            <ProgressBar Value="{Binding MicLevel}" Maximum="1" Height="18"
+                                         Margin="8,0,0,0"/>
+                        </DockPanel>
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="W konfiguracji zapisywany jest stabilny identyfikator endpointu, nie tylko nazwa."/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Wyjście -->
+                <GroupBox Header="Urządzenie wyjściowe (słuchawki / głośniki)">
+                    <StackPanel>
+                        <ComboBox ItemsSource="{Binding OutputDevices}"
+                                  SelectedItem="{Binding SelectedOutput}"
+                                  DisplayMemberPath="FriendlyName"
+                                  Margin="0,0,0,8"/>
+                        <DockPanel>
+                            <Button Content="Testuj przechwytywanie dźwięku"
+                                    Command="{Binding TestLoopbackCommand}"
+                                    Padding="12,6" Margin="0,0,8,0"/>
+                            <ProgressBar Value="{Binding LoopLevel}" Maximum="1" Height="18"
+                                         Margin="8,0,0,0"/>
+                        </DockPanel>
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="Przechwytywany jest cały dźwięk wysyłany do wybranego urządzenia (WASAPI Loopback), nie tylko z jednej aplikacji."/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Skrót -->
+                <GroupBox Header="Globalny skrót klawiszowy">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <CheckBox Content="Ctrl" IsChecked="{Binding HotkeyControl}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <CheckBox Content="Alt" IsChecked="{Binding HotkeyAlt}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <CheckBox Content="Shift" IsChecked="{Binding HotkeyShift}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <CheckBox Content="Win" IsChecked="{Binding HotkeyWindows}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Klawisz:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBox Text="{Binding HotkeyKey, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="60" MaxLength="3"/>
+                        </StackPanel>
+                        <TextBlock>
+                            <Run Text="Podgląd: "/><Run Text="{Binding HotkeyPreview}" FontWeight="Bold"/>
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="Skrót działa globalnie. W razie konfliktu z inną aplikacją pojawi się komunikat."/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Folder i MP3 -->
+                <GroupBox Header="Zapis nagrań">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,8">
+                            <Button DockPanel.Dock="Right" Content="Przeglądaj…"
+                                    Command="{Binding BrowseFolderCommand}" Padding="12,6" Margin="8,0,0,0"/>
+                            <TextBox Text="{Binding RecordingsDirectory, UpdateSourceTrigger=PropertyChanged}"/>
+                        </DockPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                <TextBlock Text="Bitrate MP3"/>
+                                <ComboBox ItemsSource="{Binding AvailableBitrates}"
+                                          SelectedItem="{Binding Mp3BitrateKbps}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Częstotliwość (Hz)"/>
+                                <ComboBox ItemsSource="{Binding AvailableSampleRates}"
+                                          SelectedItem="{Binding TargetSampleRate}"/>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Format nazwy pliku" Margin="0,8,0,0"/>
+                        <TextBox Text="{Binding FileNameFormat, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="Domyślnie: Nagranie_yyyy-MM-dd_HH-mm-ss.mp3"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Poziomy -->
+                <GroupBox Header="Poziomy głośności w miksie">
+                    <StackPanel>
+                        <TextBlock Text="{Binding MicrophoneVolume, StringFormat=Mikrofon: {0:P0}}"/>
+                        <Slider Minimum="0" Maximum="2" TickFrequency="0.05"
+                                Value="{Binding MicrophoneVolume}" Margin="0,0,0,8"/>
+                        <TextBlock Text="{Binding LoopbackVolume, StringFormat=Dźwięk ze słuchawek: {0:P0}}"/>
+                        <Slider Minimum="0" Maximum="2" TickFrequency="0.05"
+                                Value="{Binding LoopbackVolume}"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Opcje -->
+                <GroupBox Header="Opcje">
+                    <StackPanel>
+                        <CheckBox Content="Uruchamiaj wraz z Windows" IsChecked="{Binding StartWithWindows}" Margin="0,0,0,6"/>
+                        <CheckBox Content="Otwórz folder po zakończeniu nagrania" IsChecked="{Binding OpenFolderAfterRecording}" Margin="0,0,0,6"/>
+                        <CheckBox Content="Zachowaj osobne ścieżki WAV (mikrofon + loopback)" IsChecked="{Binding KeepSeparateTracks}"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8"
+                           Text="Aplikacja działa wyłącznie lokalnie. Nie wysyła danych do Internetu. Użytkownik jest odpowiedzialny za uzyskanie zgody uczestników na nagrywanie."/>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

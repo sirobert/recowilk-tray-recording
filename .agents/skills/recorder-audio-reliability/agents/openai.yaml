@@ -1,0 +1,4 @@
+interface:
+  display_name: "Recorder Audio Reliability"
+  short_description: "Naprawia synchronizację i odporność nagrywania"
+  default_prompt: "Use $recorder-audio-reliability to implement the next audio reliability repair safely."
