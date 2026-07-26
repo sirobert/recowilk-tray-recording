@@ -12,10 +12,12 @@ namespace MeetingAudioRecorder.App.Services;
 /// </summary>
 public sealed class HotkeyService : IHotkeyService
 {
-    private const int HotkeyId = 0xBEE1;
+    private const int PrimaryHotkeyId = 0xBEE1;
+    private const int SecondaryHotkeyId = 0xBEE2;
     private readonly ILogger<HotkeyService> _logger;
     private HwndSource? _source;
     private bool _registered;
+    private int _activeHotkeyId;
 
     public HotkeyService(ILogger<HotkeyService> logger)
     {
@@ -43,8 +45,6 @@ public sealed class HotkeyService : IHotkeyService
             return false;
         }
 
-        Unregister();
-
         var modifiers = 0;
         if (settings.Control) modifiers |= MOD_CONTROL;
         if (settings.Alt) modifiers |= MOD_ALT;
@@ -58,7 +58,10 @@ public sealed class HotkeyService : IHotkeyService
             return false;
         }
 
-        var ok = RegisterHotKey(_source.Handle, HotkeyId, (uint)modifiers, vk);
+        var candidateId = !_registered || _activeHotkeyId == SecondaryHotkeyId
+            ? PrimaryHotkeyId
+            : SecondaryHotkeyId;
+        var ok = RegisterHotKey(_source.Handle, candidateId, (uint)modifiers, vk);
         if (!ok)
         {
             var err = Marshal.GetLastWin32Error();
@@ -66,10 +69,19 @@ public sealed class HotkeyService : IHotkeyService
                 ? $"Skrót {settings.DisplayText} jest już zajęty przez inną aplikację."
                 : $"Nie udało się zarejestrować skrótu {settings.DisplayText} (kod {err}).";
             _logger.LogWarning("RegisterHotKey failed: {Error}", LastError);
-            _registered = false;
             return false;
         }
 
+        if (_registered && !UnregisterHotKey(_source.Handle, _activeHotkeyId))
+        {
+            var err = Marshal.GetLastWin32Error();
+            _ = UnregisterHotKey(_source.Handle, candidateId);
+            LastError = $"Nie udało się zastąpić poprzedniego skrótu (kod {err}).";
+            _logger.LogWarning("UnregisterHotKey failed during replacement: {Error}", LastError);
+            return false;
+        }
+
+        _activeHotkeyId = candidateId;
         _registered = true;
         LastError = null;
         _logger.LogInformation("Zarejestrowano skrót: {Hotkey}", settings.DisplayText);
@@ -84,14 +96,15 @@ public sealed class HotkeyService : IHotkeyService
             return;
         }
 
-        UnregisterHotKey(_source.Handle, HotkeyId);
+        UnregisterHotKey(_source.Handle, _activeHotkeyId);
         _registered = false;
+        _activeHotkeyId = 0;
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         const int WM_HOTKEY = 0x0312;
-        if (msg == WM_HOTKEY && wParam.ToInt32() == HotkeyId)
+        if (msg == WM_HOTKEY && wParam.ToInt32() == _activeHotkeyId)
         {
             HotkeyPressed?.Invoke(this, EventArgs.Empty);
             handled = true;

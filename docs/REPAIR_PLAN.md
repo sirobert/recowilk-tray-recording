@@ -85,6 +85,8 @@ Status: implementacja i testy automatyczne zakończone; test zmiany ustawień i 
 
 #### R-007: transakcyjna zmiana hotkeya
 
+Status: implementacja i testy automatyczne zakończone; test konfliktu z rzeczywistym `RegisterHotKey` oczekuje na wykonanie.
+
 - Rejestruj nowy skrót z możliwością rollbacku.
 - Zapisz ustawienia dopiero po sukcesie.
 - Przy błędzie zachowaj poprzedni aktywny skrót i konfigurację.
@@ -124,3 +126,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-07-26 | R-004 | Budżet capture/processing | 59/59 testów; 48 kHz, MP3, osobne WAV | Monitoring co 5 s; wymagany test małego woluminu |
 | 2026-07-26 | R-005 | Dryf zegara i ułamkowy resampling | 67/67 testów; próg 50 ms, limit 1000 ppm | Korekcja płynna względem monotonicznego czasu sesji; wymagany test 4 h |
 | 2026-07-26 | R-006 | Snapshot ustawień sesji i manifest v2 | 69/69 testów; build bez ostrzeżeń | Miks, zapis, monitoring dysku i recovery używają snapshotu; wymagany test UI/urządzeń |
+| 2026-07-26 | R-007 | Transakcja ustawień i hotkeya | 73/73 testy; rollback błędu rejestracji/zapisu | Poprzedni skrót i konfiguracja pozostają aktywne; wymagany test WinAPI |

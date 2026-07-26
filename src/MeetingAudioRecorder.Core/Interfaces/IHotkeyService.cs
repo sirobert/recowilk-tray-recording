@@ -9,6 +9,9 @@ public interface IHotkeyService : IDisposable
     bool IsRegistered { get; }
     string? LastError { get; }
 
+    /// <summary>
+    /// Rejestruje nowy skrót transakcyjnie. Niepowodzenie pozostawia poprzedni skrót aktywny.
+    /// </summary>
     bool Register(HotkeySettings settings);
     void Unregister();
 }

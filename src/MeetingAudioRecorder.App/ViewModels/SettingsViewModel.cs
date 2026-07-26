@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using MeetingAudioRecorder.Audio.Capture;
 using MeetingAudioRecorder.Core.Interfaces;
 using MeetingAudioRecorder.Core.Models;
+using MeetingAudioRecorder.Core.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 
@@ -169,7 +170,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (!string.IsNullOrWhiteSpace(settings.RecordingsDirectory))
                 Directory.CreateDirectory(settings.RecordingsDirectory);
 
-            _settingsService.Save(settings);
+            var commit = SettingsTransactionService.TryCommit(
+                _settingsService,
+                _hotkeyService,
+                settings);
+            if (!commit.Success)
+            {
+                StatusMessage = commit.ErrorMessage ?? "Nie udało się zapisać ustawień.";
+                MessageBox.Show(StatusMessage, "Nie zapisano ustawień", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
             try
             {
@@ -182,16 +192,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     MessageBoxButton.OK, MessageBoxImage.Warning);
             }
 
-            if (!_hotkeyService.Register(settings.Hotkey))
-            {
-                StatusMessage = _hotkeyService.LastError ?? "Konflikt skrótu klawiszowego.";
-                MessageBox.Show(StatusMessage, "Skrót zajęty", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-            else
-            {
-                StatusMessage = "Ustawienia zapisane.";
-                _notificationService.ShowInfo("Ustawienia", "Ustawienia zostały zapisane.");
-            }
+            StatusMessage = "Ustawienia zapisane.";
+            _notificationService.ShowInfo("Ustawienia", "Ustawienia zostały zapisane.");
         }
         catch (Exception ex)
         {

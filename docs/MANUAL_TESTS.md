@@ -147,6 +147,15 @@
 1. Ustaw skrót zajęty przez inną aplikację.
 2. Komunikat o niedostępności; aplikacja działa dalej.
 
+### 14A. R-007 — transakcyjna zmiana skrótu
+
+1. Potwierdź, że zapisany skrót A uruchamia i zatrzymuje nagrywanie.
+2. Otwórz ustawienia, zmień również dowolny parametr miksu i wybierz skrót B zajęty przez inną aplikację.
+3. Zapisz; oczekiwane: czytelny błąd, skrót A nadal działa, a po ponownym otwarciu ustawień parametr miksu i skrót nadal mają poprzednie wartości.
+4. Zwolnij skrót B i zapisz ponownie; oczekiwane: B działa, A przestaje działać, a nowe ustawienia są zapisane.
+5. Zamknij i uruchom aplikację; oczekiwane: działa skrót B.
+6. Powtórz kilka zmian A → B → C, sprawdzając, że pojedyncze naciśnięcie wywołuje dokładnie jedną akcję.
+
 ## Checklist kryteriów odbioru
 
 | # | Kryterium | OK? |
