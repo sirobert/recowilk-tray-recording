@@ -438,6 +438,14 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
             var duration = session.Duration ?? TimeSpan.Zero;
             return RecordingResult.Ok(session.RecordingId, finalMp3, duration, additional);
         }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Anulowano przetwarzanie nagrania {Id}", session.RecordingId);
+            TryDelete(partialMp3);
+            return RecordingResult.Fail(
+                session.RecordingId,
+                "Anulowano przetwarzanie. Pliki tymczasowe zostały zachowane do ponowienia lub recovery.");
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Błąd przetwarzania nagrania {Id}", session.RecordingId);

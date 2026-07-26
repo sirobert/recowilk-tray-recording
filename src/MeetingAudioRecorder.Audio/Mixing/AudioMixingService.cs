@@ -54,7 +54,7 @@ public sealed class AudioMixingService : IAudioMixingService
         ISampleProvider limited = new SoftLimiterSampleProvider(mixer);
 
         Directory.CreateDirectory(Path.GetDirectoryName(request.OutputWavPath)!);
-        WriteTo16BitWav(request.OutputWavPath, limited);
+        CancellableWaveWriter.WriteTo16BitWav(request.OutputWavPath, limited, cancellationToken);
 
         if (request.KeepSeparateTracks)
         {
@@ -64,7 +64,7 @@ public sealed class AudioMixingService : IAudioMixingService
                 var p = BuildPipeline(r, targetFormat, 1.0,
                     request.MicrophoneStartOffsetTicks, request.LoopbackStartOffsetTicks,
                     request.ExpectedDurationTicks, request.TargetSampleRate, "mikrofon-osobno");
-                WriteTo16BitWav(request.SeparateMicrophoneOutputPath, p);
+                WriteTrackAtomically(request.SeparateMicrophoneOutputPath, p, cancellationToken);
             }
 
             if (!string.IsNullOrEmpty(request.SeparateLoopbackOutputPath))
@@ -73,7 +73,7 @@ public sealed class AudioMixingService : IAudioMixingService
                 var p = BuildPipeline(r, targetFormat, 1.0,
                     request.LoopbackStartOffsetTicks, request.MicrophoneStartOffsetTicks,
                     request.ExpectedDurationTicks, request.TargetSampleRate, "loopback-osobno");
-                WriteTo16BitWav(request.SeparateLoopbackOutputPath, p);
+                WriteTrackAtomically(request.SeparateLoopbackOutputPath, p, cancellationToken);
             }
         }
 
@@ -81,14 +81,26 @@ public sealed class AudioMixingService : IAudioMixingService
         cancellationToken.ThrowIfCancellationRequested();
     }
 
-    private static void WriteTo16BitWav(string path, ISampleProvider source)
+    private static void WriteTrackAtomically(
+        string path,
+        ISampleProvider source,
+        CancellationToken cancellationToken)
     {
-        var waveProvider = new SampleToWaveProvider16(source);
-        using var writer = new WaveFileWriter(path, waveProvider.WaveFormat);
-        var buffer = new byte[waveProvider.WaveFormat.AverageBytesPerSecond];
-        int read;
-        while ((read = waveProvider.Read(buffer, 0, buffer.Length)) > 0)
-            writer.Write(buffer, 0, read);
+        var partial = path + ".partial";
+        try
+        {
+            if (File.Exists(partial))
+                File.Delete(partial);
+            CancellableWaveWriter.WriteTo16BitWav(partial, source, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            File.Move(partial, path, overwrite: true);
+        }
+        catch
+        {
+            try { File.Delete(partial); }
+            catch { /* best effort; plik ma jawne rozszerzenie partial */ }
+            throw;
+        }
     }
 
     private ISampleProvider BuildPipeline(

@@ -93,9 +93,13 @@ Status: implementacja i testy automatyczne zakończone; test konfliktu z rzeczyw
 
 #### R-008: anulowanie przetwarzania
 
+Status: implementacja i testy automatyczne zakończone; interaktywny test anulowania Media Foundation oczekuje na wykonanie.
+
 - Sprawdzaj token w pętli zapisu miksu.
 - Opisz ograniczenia anulowania Media Foundation.
 - Nie publikuj częściowego MP3 po anulowaniu.
+
+Media Foundation pozostaje API synchronicznym. Token jest sprawdzany na granicy każdego odczytu PCM oraz przed publikacją, ale finalizacja wewnętrznego kontenera może opóźnić reakcję. Po anulowaniu plik `.partial` jest usuwany, natomiast źródłowe WAV, manifest i roboczy miks pozostają do ponowienia lub recovery.
 
 #### R-009: testy systemowe i diagnostyka
 
@@ -127,3 +131,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-07-26 | R-005 | Dryf zegara i ułamkowy resampling | 67/67 testów; próg 50 ms, limit 1000 ppm | Korekcja płynna względem monotonicznego czasu sesji; wymagany test 4 h |
 | 2026-07-26 | R-006 | Snapshot ustawień sesji i manifest v2 | 69/69 testów; build bez ostrzeżeń | Miks, zapis, monitoring dysku i recovery używają snapshotu; wymagany test UI/urządzeń |
 | 2026-07-26 | R-007 | Transakcja ustawień i hotkeya | 73/73 testy; rollback błędu rejestracji/zapisu | Poprzedni skrót i konfiguracja pozostają aktywne; wymagany test WinAPI |
+| 2026-07-26 | R-008 | Anulowanie miksu i kodowania | 76/76 testów; granice buforów WAV/PCM | Brak publikacji częściowego MP3, źródła zachowane; wymagany test Media Foundation |

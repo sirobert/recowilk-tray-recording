@@ -156,6 +156,15 @@
 5. Zamknij i uruchom aplikację; oczekiwane: działa skrót B.
 6. Powtórz kilka zmian A → B → C, sprawdzając, że pojedyncze naciśnięcie wywołuje dokładnie jedną akcję.
 
+## 15. R-008 — anulowanie przetwarzania
+
+1. Przygotuj dłuższe nagranie, aby miksowanie i kodowanie trwało zauważalnie długo.
+2. Rozpocznij zatrzymywanie, a następnie anuluj token operacji z testowego hosta podczas miksowania.
+3. Oczekiwane: zapis zatrzymuje się na granicy bufora, nie powstaje finalny MP3 ani plik osobnej ścieżki z rozszerzeniem `.partial`.
+4. Potwierdź, że źródłowe WAV, manifest i ewentualny roboczy miks pozostają w Temp i można wykonać recovery.
+5. Powtórz anulowanie podczas kodowania Media Foundation.
+6. Oczekiwane: reakcja może nastąpić dopiero przy kolejnym odczycie PCM lub po krótkiej finalizacji MF, ale MP3 `.partial` zostaje usunięty i nie jest publikowany pod nazwą finalną.
+
 ## Checklist kryteriów odbioru
 
 | # | Kryterium | OK? |

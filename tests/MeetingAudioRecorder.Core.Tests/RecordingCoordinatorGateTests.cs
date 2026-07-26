@@ -180,6 +180,46 @@ public class RecordingCoordinatorGateTests
     }
 
     [Fact]
+    public async Task EncodingCancellation_DoesNotPublishMp3AndPreservesSourceTracks()
+    {
+        var settings = AppSettings.CreateDefault();
+        settings.MicrophoneDeviceId = "mic-1";
+        settings.OutputDeviceId = "out-1";
+        settings.RecordingsDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "mar-cancel-output-" + Guid.NewGuid().ToString("N"));
+        var encoding = new Mock<IMp3EncodingService>();
+        encoding.Setup(service => service.EncodeToMp3Async(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<string, string, int, CancellationToken>((_, output, _, _) =>
+            {
+                File.WriteAllBytes(output, new byte[256]);
+                return Task.FromException(new OperationCanceledException());
+            });
+
+        await using var coordinator = CreateCoordinator(settings: settings, encoding: encoding);
+        await coordinator.StartRecordingAsync();
+        var session = coordinator.CurrentSession!;
+        File.WriteAllBytes(session.MicrophoneTempPath, new byte[100]);
+        File.WriteAllBytes(session.LoopbackTempPath, new byte[100]);
+
+        var result = await coordinator.StopRecordingAsync();
+
+        Assert.False(result.Success);
+        Assert.Contains("Anulowano", result.ErrorMessage);
+        Assert.True(File.Exists(session.MicrophoneTempPath));
+        Assert.True(File.Exists(session.LoopbackTempPath));
+        Assert.Empty(Directory.EnumerateFiles(settings.RecordingsDirectory, "*.mp3"));
+        Assert.Empty(Directory.EnumerateFiles(settings.RecordingsDirectory, "*.partial"));
+
+        try { Directory.Delete(settings.RecordingsDirectory, recursive: true); }
+        catch { /* best effort */ }
+    }
+
+    [Fact]
     public async Task DoubleStart_SecondThrows()
     {
         var mic = new Mock<IMicrophoneCaptureService>();

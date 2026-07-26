@@ -23,40 +23,52 @@ public sealed class Mp3EncodingService : IMp3EncodingService
     {
         return Task.Run(() =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (!File.Exists(inputWavPath))
-                throw new FileNotFoundException("Brak pliku WAV do zakodowania.", inputWavPath);
-
-            Directory.CreateDirectory(Path.GetDirectoryName(outputMp3Path)!);
-
-            // Usuń ewentualny stary partial
-            if (File.Exists(outputMp3Path))
-                File.Delete(outputMp3Path);
-
-            _logger.LogInformation("Kodowanie MP3 {Bitrate}kbps: {In} → {Out}", bitrateKbps, inputWavPath, outputMp3Path);
-
-            using var reader = new AudioFileReader(inputWavPath);
-
-            // Media Foundation wymaga PCM 16-bit do wielu encoderów
-            var pcm16 = reader.ToWaveProvider16();
-
             try
             {
-                MediaFoundationEncoder.EncodeToMp3(pcm16, outputMp3Path, bitrateKbps * 1000);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!File.Exists(inputWavPath))
+                    throw new FileNotFoundException("Brak pliku WAV do zakodowania.", inputWavPath);
+
+                Directory.CreateDirectory(Path.GetDirectoryName(outputMp3Path)!);
+
+                // Usuń ewentualny stary partial
+                if (File.Exists(outputMp3Path))
+                    File.Delete(outputMp3Path);
+
+                _logger.LogInformation("Kodowanie MP3 {Bitrate}kbps: {In} → {Out}", bitrateKbps, inputWavPath, outputMp3Path);
+
+                using var reader = new AudioFileReader(inputWavPath);
+
+                // Media Foundation wymaga PCM 16-bit do wielu encoderów.
+                // Token jest sprawdzany przy każdym odczycie źródła; finalizacja MF może pozostać synchroniczna.
+                var pcm16 = new CancellationWaveProvider(reader.ToWaveProvider16(), cancellationToken);
+
+                try
+                {
+                    MediaFoundationEncoder.EncodeToMp3(pcm16, outputMp3Path, bitrateKbps * 1000);
+                }
+                catch (InvalidOperationException)
+                {
+                    // Fallback: niektóre systemy wymagają jawnego media type
+                    cancellationToken.ThrowIfCancellationRequested();
+                    _logger.LogWarning("EncodeToMp3 nie powiodło się, próba ręcznego enkodera MF");
+                    reader.Position = 0;
+                    var fallback = new CancellationWaveProvider(reader.ToWaveProvider16(), cancellationToken);
+                    EncodeWithManualMediaType(fallback, outputMp3Path, bitrateKbps);
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!File.Exists(outputMp3Path) || new FileInfo(outputMp3Path).Length < 128)
+                    throw new InvalidOperationException("Media Foundation nie utworzyła poprawnego pliku MP3. Sprawdź, czy system obsługuje koder MP3.");
+
+                _logger.LogInformation("MP3 gotowy: {Path}, rozmiar={Size}", outputMp3Path, new FileInfo(outputMp3Path).Length);
             }
-            catch (InvalidOperationException)
+            catch
             {
-                // Fallback: niektóre systemy wymagają jawnego media type
-                _logger.LogWarning("EncodeToMp3 nie powiodło się, próba ręcznego enkodera MF");
-                EncodeWithManualMediaType(pcm16, outputMp3Path, bitrateKbps);
+                TryDelete(outputMp3Path);
+                throw;
             }
-
-            if (!File.Exists(outputMp3Path) || new FileInfo(outputMp3Path).Length < 128)
-                throw new InvalidOperationException("Media Foundation nie utworzyła poprawnego pliku MP3. Sprawdź, czy system obsługuje koder MP3.");
-
-            _logger.LogInformation("MP3 gotowy: {Path}, rozmiar={Size}", outputMp3Path, new FileInfo(outputMp3Path).Length);
-            cancellationToken.ThrowIfCancellationRequested();
         }, cancellationToken);
     }
 
@@ -89,6 +101,19 @@ public sealed class Mp3EncodingService : IMp3EncodingService
                 Interlocked.Exchange(ref _mfStarted, 0);
                 throw;
             }
+        }
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch
+        {
+            // Koordynator ponowi cleanup; plik nadal ma rozszerzenie .partial.
         }
     }
 }
