@@ -80,9 +80,9 @@ docs/
 |-------|---------|
 | Capture | NAudio WASAPI shared mode |
 | Loopback | `WasapiLoopbackCapture` na konkretnym `MMDevice` |
-| Cisza loopback | Timer uzupełnia zerowe próbki do osi czasu ściennej |
-| Sync | Wspólne ticki startu + cisza wiodąca na opóźnionym źródle |
-| Resampling | `WdlResamplingSampleProvider` |
+| Cisza loopback | Potwierdzone luki są uzupełniane na deterministycznej osi ramek |
+| Sync | Wspólne ticki startu, cisza wiodąca i limitowana korekcja dryfu |
+| Resampling | Ułamkowy WDL z korekcją maks. 1000 ppm |
 | MP3 | `MediaFoundationEncoder` (bez FFmpeg) |
 | Hotkey | WinAPI `RegisterHotKey` (bez global hooka) |
 | DI | `Microsoft.Extensions.DependencyInjection` |
@@ -254,7 +254,20 @@ Instalator:
 ## Testy
 
 - Jednostkowe: `dotnet test`
+- Pełna bramka lokalna: `.\scripts\verify.ps1`
+- Media Foundation opt-in:
+
+  ```powershell
+  $env:MAR_RUN_WINDOWS_INTEGRATION = "1"
+  dotnet test tests\MeetingAudioRecorder.Audio.Tests\MeetingAudioRecorder.Audio.Tests.csproj `
+    -c Release --filter "Category=WindowsIntegration"
+  ```
+
 - Integracyjne (ręcznie): [docs/MANUAL_TESTS.md](docs/MANUAL_TESTS.md)
+
+Logi diagnostyczne zawierają wyłącznie metadane techniczne: format i `BlockAlign`,
+liczbę ramek, uzupełnione luki, korektę dryfu oraz rozmiary plików. Próbki i treść
+audio nie są zapisywane w logach.
 
 ---
 

@@ -54,7 +54,10 @@ public sealed class AudioMixingService : IAudioMixingService
         ISampleProvider limited = new SoftLimiterSampleProvider(mixer);
 
         Directory.CreateDirectory(Path.GetDirectoryName(request.OutputWavPath)!);
-        CancellableWaveWriter.WriteTo16BitWav(request.OutputWavPath, limited, cancellationToken);
+        var mixedFrames = CancellableWaveWriter.WriteTo16BitWav(
+            request.OutputWavPath,
+            limited,
+            cancellationToken);
 
         if (request.KeepSeparateTracks)
         {
@@ -77,7 +80,11 @@ public sealed class AudioMixingService : IAudioMixingService
             }
         }
 
-        _logger.LogInformation("Miks zakończony: {Path}", request.OutputWavPath);
+        _logger.LogInformation(
+            "Miks zakończony: {Path}, frames={Frames}, bytes={Bytes}",
+            request.OutputWavPath,
+            mixedFrames,
+            new FileInfo(request.OutputWavPath).Length);
         cancellationToken.ThrowIfCancellationRequested();
     }
 

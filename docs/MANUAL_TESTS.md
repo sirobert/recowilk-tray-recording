@@ -165,6 +165,15 @@
 5. Powtórz anulowanie podczas kodowania Media Foundation.
 6. Oczekiwane: reakcja może nastąpić dopiero przy kolejnym odczycie PCM lub po krótkiej finalizacji MF, ale MP3 `.partial` zostaje usunięty i nie jest publikowany pod nazwą finalną.
 
+## 16. R-009 — diagnostyka sesji
+
+1. Wykonaj krótkie nagranie z ciszą loopback, odcinkiem aktywnego dźwięku i co najmniej jedną potwierdzoną luką.
+2. Otwórz log sesji w `%LOCALAPPDATA%\MeetingAudioRecorder\Logs`.
+3. Potwierdź obecność formatu, `BlockAlign`, liczby ramek mikrofonu/loopbacku, liczby ramek ciszy, korekty dryfu oraz rozmiarów plików.
+4. Porównaj liczby ramek z czasem plików przy 44,1 i 48 kHz.
+5. Przejrzyj log i potwierdź, że nie zawiera wartości próbek, fragmentów audio ani transkrypcji.
+6. Do raportu sprzętowego dołącz wersję Windows, urządzenia, endpointy, formaty i wynik checklisty — bez dołączania treści nagrania, jeśli nie jest potrzebna.
+
 ## Checklist kryteriów odbioru
 
 | # | Kryterium | OK? |

@@ -23,6 +23,7 @@ public sealed class WasapiMicrophoneCapture : IMicrophoneCaptureService
     private long _startOffsetTicks;
     private WaveFormat? _format;
     private readonly Stopwatch _clock = new();
+    private string? _outputWavPath;
 
     public WasapiMicrophoneCapture(ILogger<WasapiMicrophoneCapture> logger)
     {
@@ -63,6 +64,7 @@ public sealed class WasapiMicrophoneCapture : IMicrophoneCaptureService
                 _format = _capture.WaveFormat;
                 Directory.CreateDirectory(Path.GetDirectoryName(outputWavPath)!);
                 _writer = new WaveFileWriter(outputWavPath, _format);
+                _outputWavPath = outputWavPath;
 
                 _capture.DataAvailable += OnDataAvailable;
                 _capture.RecordingStopped += OnRecordingStopped;
@@ -77,8 +79,13 @@ public sealed class WasapiMicrophoneCapture : IMicrophoneCaptureService
                 _isCapturing = true;
 
                 _logger.LogInformation(
-                    "Mikrofon start: {Name}, format={Rate}Hz/{Ch}ch/{Bits}bit",
-                    _device.FriendlyName, _format.SampleRate, _format.Channels, _format.BitsPerSample);
+                    "Mikrofon start: {Name}, format={Rate}Hz/{Ch}ch/{Bits}bit/{Encoding}, blockAlign={BlockAlign}",
+                    _device.FriendlyName,
+                    _format.SampleRate,
+                    _format.Channels,
+                    _format.BitsPerSample,
+                    _format.Encoding,
+                    _format.BlockAlign);
             }
             catch
             {
@@ -112,7 +119,11 @@ public sealed class WasapiMicrophoneCapture : IMicrophoneCaptureService
             // Writer zamykany w RecordingStopped lub tutaj
             FinalizeWriter();
             _isCapturing = false;
-            _logger.LogInformation("Mikrofon stop, próbek={Samples}", _samplesWritten);
+            var frames = _format is null ? 0 : _samplesWritten / _format.Channels;
+            _logger.LogInformation(
+                "Mikrofon stop: frames={Frames}, bytes={Bytes}",
+                frames,
+                GetFileSize(_outputWavPath));
         }
 
         return Task.CompletedTask;
@@ -224,6 +235,7 @@ public sealed class WasapiMicrophoneCapture : IMicrophoneCaptureService
         _writer = null;
         try { _device?.Dispose(); } catch { /* ignore */ }
         _device = null;
+        _outputWavPath = null;
         _isCapturing = false;
     }
 
@@ -234,5 +246,11 @@ public sealed class WasapiMicrophoneCapture : IMicrophoneCaptureService
             CleanupUnsafe();
         }
         return ValueTask.CompletedTask;
+    }
+
+    private static long GetFileSize(string? path)
+    {
+        try { return path is not null && File.Exists(path) ? new FileInfo(path).Length : 0; }
+        catch { return 0; }
     }
 }

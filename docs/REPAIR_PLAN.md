@@ -103,6 +103,8 @@ Media Foundation pozostaje API synchronicznym. Token jest sprawdzany na granicy 
 
 #### R-009: testy systemowe i diagnostyka
 
+Status: implementacja zakończona; opt-in test Media Foundation wykonany pomyślnie, testy wymagające fizycznych urządzeń pozostają do wykonania.
+
 - Dodaj testy manifestu/recovery i osi czasu bez sprzętu.
 - Dodaj opt-in testy Windows dla Media Foundation.
 - Rozszerz testy manualne o markery synchronizacji i protokół wyników.
@@ -132,3 +134,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-07-26 | R-006 | Snapshot ustawień sesji i manifest v2 | 69/69 testów; build bez ostrzeżeń | Miks, zapis, monitoring dysku i recovery używają snapshotu; wymagany test UI/urządzeń |
 | 2026-07-26 | R-007 | Transakcja ustawień i hotkeya | 73/73 testy; rollback błędu rejestracji/zapisu | Poprzedni skrót i konfiguracja pozostają aktywne; wymagany test WinAPI |
 | 2026-07-26 | R-008 | Anulowanie miksu i kodowania | 76/76 testów; granice buforów WAV/PCM | Brak publikacji częściowego MP3, źródła zachowane; wymagany test Media Foundation |
+| 2026-07-26 | R-009 | Diagnostyka i test Windows Media Foundation | 77 testów domyślnych + 1 opt-in MF; build bez ostrzeżeń | Opt-in MF przeszedł na Windows; testy WASAPI/BT/4 h nadal manualne |

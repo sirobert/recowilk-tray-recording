@@ -24,6 +24,8 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
     private WaveFormat? _format;
     private int _bytesPerFrame;
     private LoopbackFrameTimeline? _timeline;
+    private long _silenceFramesWritten;
+    private string? _outputWavPath;
     private readonly Stopwatch _wallClock = new();
 
     public WasapiLoopbackCaptureService(ILogger<WasapiLoopbackCaptureService> logger)
@@ -68,6 +70,7 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
 
                 Directory.CreateDirectory(Path.GetDirectoryName(outputWavPath)!);
                 _writer = new WaveFileWriter(outputWavPath, _format);
+                _outputWavPath = outputWavPath;
 
                 _capture.DataAvailable += OnDataAvailable;
                 _capture.RecordingStopped += OnRecordingStopped;
@@ -75,6 +78,7 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
                 _startOffsetTicks = Stopwatch.GetTimestamp();
                 _startOffsetTicks = (long)(_startOffsetTicks * (TimeSpan.TicksPerSecond / (double)Stopwatch.Frequency));
                 _samplesWritten = 0;
+                _silenceFramesWritten = 0;
                 _timeline = new LoopbackFrameTimeline(
                     _format.SampleRate,
                     gapToleranceFrames: _format.SampleRate / 20); // 50 ms tolerancji opóźnienia callbacka
@@ -84,8 +88,13 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
                 _isCapturing = true;
 
                 _logger.LogInformation(
-                    "Loopback start: {Name}, format={Rate}Hz/{Ch}ch/{Bits}bit",
-                    _device.FriendlyName, _format.SampleRate, _format.Channels, _format.BitsPerSample);
+                    "Loopback start: {Name}, format={Rate}Hz/{Ch}ch/{Bits}bit/{Encoding}, blockAlign={BlockAlign}",
+                    _device.FriendlyName,
+                    _format.SampleRate,
+                    _format.Channels,
+                    _format.BitsPerSample,
+                    _format.Encoding,
+                    _format.BlockAlign);
             }
             catch
             {
@@ -122,7 +131,13 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
 
             FinalizeWriter();
             _isCapturing = false;
-            _logger.LogInformation("Loopback stop, próbek={Samples}", _samplesWritten);
+            var frames = _timeline?.PositionFrames
+                         ?? (_format is null ? 0 : _samplesWritten / _format.Channels);
+            _logger.LogInformation(
+                "Loopback stop: frames={Frames}, silenceFrames={SilenceFrames}, bytes={Bytes}",
+                frames,
+                _silenceFramesWritten,
+                GetFileSize(_outputWavPath));
         }
 
         return Task.CompletedTask;
@@ -191,6 +206,7 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
             var bytesToWrite = framesInChunk * _bytesPerFrame;
             _writer.Write(chunk, 0, bytesToWrite);
             Interlocked.Add(ref _samplesWritten, (long)framesInChunk * _format.Channels);
+            _silenceFramesWritten += framesInChunk;
             frames -= framesInChunk;
         }
     }
@@ -277,6 +293,7 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
         try { _device?.Dispose(); } catch { /* ignore */ }
         _device = null;
         _timeline = null;
+        _outputWavPath = null;
         _isCapturing = false;
     }
 
@@ -287,5 +304,11 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
             CleanupUnsafe();
         }
         return ValueTask.CompletedTask;
+    }
+
+    private static long GetFileSize(string? path)
+    {
+        try { return path is not null && File.Exists(path) ? new FileInfo(path).Length : 0; }
+        catch { return 0; }
     }
 }

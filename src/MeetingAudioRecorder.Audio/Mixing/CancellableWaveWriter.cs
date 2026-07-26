@@ -5,7 +5,7 @@ namespace MeetingAudioRecorder.Audio.Mixing;
 
 public static class CancellableWaveWriter
 {
-    public static void WriteTo16BitWav(
+    public static long WriteTo16BitWav(
         string path,
         ISampleProvider source,
         CancellationToken cancellationToken = default)
@@ -17,6 +17,7 @@ public static class CancellableWaveWriter
         var waveProvider = new SampleToWaveProvider16(source);
         using var writer = new WaveFileWriter(path, waveProvider.WaveFormat);
         var buffer = new byte[waveProvider.WaveFormat.AverageBytesPerSecond];
+        long framesWritten = 0;
 
         while (true)
         {
@@ -27,6 +28,9 @@ public static class CancellableWaveWriter
                 break;
 
             writer.Write(buffer, 0, read);
+            framesWritten += read / waveProvider.WaveFormat.BlockAlign;
         }
+
+        return framesWritten;
     }
 }

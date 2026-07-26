@@ -361,7 +361,15 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
         // Upewnij się, że brakujące pliki to cisza (pusty WAV nie — mikser obsłuży brak jednego źródła)
         Directory.CreateDirectory(settings.RecordingsDirectory);
 
-        var sourceBytes = GetFileLength(session.MicrophoneTempPath) + GetFileLength(session.LoopbackTempPath);
+        var microphoneBytes = GetFileLength(session.MicrophoneTempPath);
+        var loopbackBytes = GetFileLength(session.LoopbackTempPath);
+        var sourceBytes = microphoneBytes + loopbackBytes;
+        _logger.LogInformation(
+            "Przetwarzanie {Id}: micBytes={MicBytes}, loopBytes={LoopBytes}, durationTicks={DurationTicks}",
+            session.RecordingId,
+            microphoneBytes,
+            loopbackBytes,
+            session.Duration?.Ticks ?? 0);
         try
         {
             EnsureStorageAvailable(
