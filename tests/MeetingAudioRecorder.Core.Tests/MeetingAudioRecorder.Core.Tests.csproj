@@ -25,4 +25,10 @@
     <ProjectReference Include="..\..\src\MeetingAudioRecorder.Core\MeetingAudioRecorder.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\src\MeetingAudioRecorder.App\Views\SettingsWindow.xaml"
+          Link="UiContracts\SettingsWindow.xaml"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

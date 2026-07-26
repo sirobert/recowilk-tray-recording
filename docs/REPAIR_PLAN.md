@@ -110,6 +110,15 @@ Status: implementacja zakończona; opt-in test Media Foundation wykonany pomyśl
 - Rozszerz testy manualne o markery synchronizacji i protokół wyników.
 - Loguj format, ramki, luki, korekty dryfu i rozmiary; nigdy próbki audio.
 
+#### R-010: otwieranie okna ustawień
+
+Status: poprawka i test regresyjny zakończone; wymagany test interaktywny z zainstalowanej wersji 1.0.1.
+
+- Ustaw wiązanie właściwości tylko do odczytu `HotkeyPreview` jawnie jako `OneWay`.
+- Dodaj test kontraktu XAML wykrywający ponowne użycie domyślnego wiązania `TwoWay`.
+
+Akceptacja: kliknięcie **Ustawienia** z menu tray i dwuklik ikony otwierają okno bez wyjątku dispatchera.
+
 ## Strategia commitów
 
 1. `test: reproduce loopback timeline duplication`
@@ -135,3 +144,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-07-26 | R-007 | Transakcja ustawień i hotkeya | 73/73 testy; rollback błędu rejestracji/zapisu | Poprzedni skrót i konfiguracja pozostają aktywne; wymagany test WinAPI |
 | 2026-07-26 | R-008 | Anulowanie miksu i kodowania | 76/76 testów; granice buforów WAV/PCM | Brak publikacji częściowego MP3, źródła zachowane; wymagany test Media Foundation |
 | 2026-07-26 | R-009 | Diagnostyka i test Windows Media Foundation | 77 testów domyślnych + 1 opt-in MF; build bez ostrzeżeń | Opt-in MF przeszedł; audyt NuGet bez znanych podatności; testy WASAPI/BT/4 h nadal manualne |
+| 2026-07-26 | R-010 | Kontrakt XAML okna ustawień | Test regresyjny wymusza `Mode=OneWay` dla `HotkeyPreview` | Wymagane potwierdzenie otwarcia ustawień z tray po instalacji 1.0.1 |

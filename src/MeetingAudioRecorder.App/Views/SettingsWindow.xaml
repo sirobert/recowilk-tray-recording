@@ -90,7 +90,7 @@
                                      Width="60" MaxLength="3"/>
                         </StackPanel>
                         <TextBlock>
-                            <Run Text="Podgląd: "/><Run Text="{Binding HotkeyPreview}" FontWeight="Bold"/>
+                            <Run Text="Podgląd: "/><Run Text="{Binding HotkeyPreview, Mode=OneWay}" FontWeight="Bold"/>
                         </TextBlock>
                         <TextBlock Style="{StaticResource Hint}"
                                    Text="Skrót działa globalnie. W razie konfliktu z inną aplikacją pojawi się komunikat."/>
