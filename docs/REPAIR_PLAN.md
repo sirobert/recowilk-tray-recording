@@ -119,6 +119,16 @@ Status: poprawka i test regresyjny zakończone; wymagany test interaktywny z zai
 
 Akceptacja: kliknięcie **Ustawienia** z menu tray i dwuklik ikony otwierają okno bez wyjątku dispatchera.
 
+#### R-011: kodowanie atomowego pliku MP3
+
+Status: poprawka i test Media Foundation zakończone; wymagane odzyskanie zachowanych sesji i test nagrania z wersji 1.0.2.
+
+- Koduj do roboczej nazwy zakończonej rozszerzeniem `.mp3`, wymaganym przez Media Foundation.
+- Po walidacji przenieś wynik do pliku `.partial`, który koordynator publikuje atomowo.
+- Przy błędzie lub anulowaniu usuń oba pliki robocze, zachowując źródłowe WAV, miks i manifest.
+
+Akceptacja: kodowanie do ścieżki `*.mp3.partial` tworzy czytelny MP3, a źródła są usuwane dopiero po publikacji wyniku.
+
 ## Strategia commitów
 
 1. `test: reproduce loopback timeline duplication`
@@ -145,3 +155,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-07-26 | R-008 | Anulowanie miksu i kodowania | 76/76 testów; granice buforów WAV/PCM | Brak publikacji częściowego MP3, źródła zachowane; wymagany test Media Foundation |
 | 2026-07-26 | R-009 | Diagnostyka i test Windows Media Foundation | 77 testów domyślnych + 1 opt-in MF; build bez ostrzeżeń | Opt-in MF przeszedł; audyt NuGet bez znanych podatności; testy WASAPI/BT/4 h nadal manualne |
 | 2026-07-26 | R-010 | Kontrakt XAML okna ustawień | Test regresyjny wymusza `Mode=OneWay` dla `HotkeyPreview` | Wymagane potwierdzenie otwarcia ustawień z tray po instalacji 1.0.1 |
+| 2026-07-26 | R-011 | Windows 11, Media Foundation, `*.mp3.partial` | Test przed poprawką odtwarzał wyjątek sink writera; po poprawce tworzy czytelny MP3 | Zachowane źródła dwóch sesji użytkownika; wymagany test recovery i nagrania w 1.0.2 |

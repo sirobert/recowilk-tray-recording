@@ -18,7 +18,7 @@ public class MediaFoundationMp3EncodingIntegrationTests
         try
         {
             var wavPath = Path.Combine(directory, "input.wav");
-            var mp3Path = Path.Combine(directory, "output.mp3");
+            var mp3Path = Path.Combine(directory, "output.mp3.partial");
             WriteSineWav(wavPath, duration: TimeSpan.FromSeconds(2));
             var sut = new Mp3EncodingService(NullLogger<Mp3EncodingService>.Instance);
 

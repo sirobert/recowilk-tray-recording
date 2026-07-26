@@ -23,6 +23,7 @@ public sealed class Mp3EncodingService : IMp3EncodingService
     {
         return Task.Run(() =>
         {
+            var encoderOutputPath = GetEncoderOutputPath(outputMp3Path);
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -35,6 +36,8 @@ public sealed class Mp3EncodingService : IMp3EncodingService
                 // Usuń ewentualny stary partial
                 if (File.Exists(outputMp3Path))
                     File.Delete(outputMp3Path);
+                if (!PathsEqual(encoderOutputPath, outputMp3Path) && File.Exists(encoderOutputPath))
+                    File.Delete(encoderOutputPath);
 
                 _logger.LogInformation("Kodowanie MP3 {Bitrate}kbps: {In} → {Out}", bitrateKbps, inputWavPath, outputMp3Path);
 
@@ -46,7 +49,7 @@ public sealed class Mp3EncodingService : IMp3EncodingService
 
                 try
                 {
-                    MediaFoundationEncoder.EncodeToMp3(pcm16, outputMp3Path, bitrateKbps * 1000);
+                    MediaFoundationEncoder.EncodeToMp3(pcm16, encoderOutputPath, bitrateKbps * 1000);
                 }
                 catch (InvalidOperationException)
                 {
@@ -55,22 +58,37 @@ public sealed class Mp3EncodingService : IMp3EncodingService
                     _logger.LogWarning("EncodeToMp3 nie powiodło się, próba ręcznego enkodera MF");
                     reader.Position = 0;
                     var fallback = new CancellationWaveProvider(reader.ToWaveProvider16(), cancellationToken);
-                    EncodeWithManualMediaType(fallback, outputMp3Path, bitrateKbps);
+                    EncodeWithManualMediaType(fallback, encoderOutputPath, bitrateKbps);
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!File.Exists(outputMp3Path) || new FileInfo(outputMp3Path).Length < 128)
+                if (!File.Exists(encoderOutputPath) || new FileInfo(encoderOutputPath).Length < 128)
                     throw new InvalidOperationException("Media Foundation nie utworzyła poprawnego pliku MP3. Sprawdź, czy system obsługuje koder MP3.");
+
+                if (!PathsEqual(encoderOutputPath, outputMp3Path))
+                    File.Move(encoderOutputPath, outputMp3Path);
 
                 _logger.LogInformation("MP3 gotowy: {Path}, rozmiar={Size}", outputMp3Path, new FileInfo(outputMp3Path).Length);
             }
             catch
             {
+                TryDelete(encoderOutputPath);
                 TryDelete(outputMp3Path);
                 throw;
             }
         }, cancellationToken);
     }
+
+    private static string GetEncoderOutputPath(string outputPath) =>
+        string.Equals(Path.GetExtension(outputPath), ".mp3", StringComparison.OrdinalIgnoreCase)
+            ? outputPath
+            : outputPath + ".encoding.mp3";
+
+    private static bool PathsEqual(string first, string second) =>
+        string.Equals(
+            Path.GetFullPath(first),
+            Path.GetFullPath(second),
+            StringComparison.OrdinalIgnoreCase);
 
     private static void EncodeWithManualMediaType(IWaveProvider source, string outputPath, int bitrateKbps)
     {
