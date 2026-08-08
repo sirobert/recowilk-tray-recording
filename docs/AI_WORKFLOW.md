@@ -1,5 +1,13 @@
 # Praca nad projektem z AI
 
+## Główne rozwiązanie
+
+Jedynym plikiem rozwiązania jest `MeetingAudioRecorder.sln`. Używają go Visual Studio, polecenia `dotnet`, skrypty weryfikacyjne i hooki Git. Po dodaniu lub usunięciu projektu sprawdź aktualność rozwiązania poleceniem:
+
+```powershell
+dotnet sln MeetingAudioRecorder.sln list
+```
+
 ## Rozpoczęcie zadania
 
 1. Wybierz pojedynczy identyfikator z `REPAIR_PLAN.md`.
@@ -27,4 +35,3 @@ Repo używa `core.hooksPath=.githooks`.
 - `pre-commit` sprawdza format i szybki build.
 - `pre-push` uruchamia pełne testy Release.
 - Ostateczną bramą jest workflow CI.
-

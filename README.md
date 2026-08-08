@@ -47,12 +47,14 @@ Przeznaczona do nagrywania spotkań (Google Meet, Microsoft Teams, Zoom itd.) z 
 ## Architektura rozwiązania
 
 ```
-MeetingAudioRecorder.slnx
+MeetingAudioRecorder.sln              # główne rozwiązanie Visual Studio / dotnet CLI
+browser-extension/                    # Manifest V3: Meeting Orgniazer Gemini
 src/
   MeetingAudioRecorder.App/            # WPF, tray, hotkey, ViewModels
   MeetingAudioRecorder.Core/           # modele, interfejsy, stan, use-case
   MeetingAudioRecorder.Audio/          # WASAPI, miks, resampling, MP3
   MeetingAudioRecorder.Infrastructure/ # JSON, Serilog, autostart, mutex, recovery
+  MeetingAudioRecorder.BrowserBridge/  # lokalny host Native Messaging Chrome/Edge
 tests/
   MeetingAudioRecorder.Core.Tests/
   MeetingAudioRecorder.Audio.Tests/
@@ -61,7 +63,9 @@ scripts/
   build-installer.ps1
   installer.iss
 docs/
+  AI_WORKFLOW.md
   MANUAL_TESTS.md
+  REPAIR_PLAN.md
 ```
 
 ### Przepływ nagrania
@@ -105,19 +109,19 @@ docs/
 ```powershell
 cd C:\pr\Recorder\Windows
 # Visual Studio 2022 / Rider / VS Code
-start MeetingAudioRecorder.slnx
+start MeetingAudioRecorder.sln
 ```
 
 ### 2. Przywróć pakiety
 
 ```powershell
-dotnet restore MeetingAudioRecorder.slnx
+dotnet restore MeetingAudioRecorder.sln
 ```
 
 ### 3. Skompiluj
 
 ```powershell
-dotnet build MeetingAudioRecorder.slnx -c Release
+dotnet build MeetingAudioRecorder.sln -c Release
 ```
 
 ### 4. Uruchom
@@ -131,7 +135,7 @@ Aplikacja pojawi się w **zasobniku systemowym** (obok zegara).
 ### 5. Testy jednostkowe
 
 ```powershell
-dotnet test MeetingAudioRecorder.slnx -c Release
+dotnet test MeetingAudioRecorder.sln -c Release
 ```
 
 ---
@@ -160,7 +164,7 @@ Samo rozpoczęcie wydarzenia ani otwarcie strony Meet nie uruchamia nagrania. Ap
 
 #### Meeting Orgniazer Gemini — spotkania bez Calendar
 
-Rozszerzenie jest dołączone do aplikacji 1.2.0 i obsługuje linki Meet przesłane przez e-mail, komunikator lub czat:
+Rozszerzenie jest dołączone do aplikacji 1.2.1 i obsługuje linki Meet przesłane przez e-mail, komunikator lub czat:
 
 1. Otwórz **Ustawienia → Google Meet**.
 2. Kliknij **Pobierz / zainstaluj dla Chrome** albo **dla Edge**.
@@ -252,18 +256,15 @@ Przy uszkodzonym JSON: kopia `.corrupt.*.bak`, domyślne wartości, aplikacja dz
 .\scripts\publish.ps1
 ```
 
-Równoważnie:
+Skrypt publikuje aplikację jako self-contained multi-file oraz lokalny most przeglądarki jako self-contained single-file. Nie zastępuj go samym `dotnet publish` projektu App, ponieważ instalator nie zawierałby wtedy aktualnego `MeetingAudioRecorder.BrowserBridge.exe`.
 
-```powershell
-dotnet publish src\MeetingAudioRecorder.App\MeetingAudioRecorder.App.csproj `
-  -c Release -r win-x64 --self-contained true `
-  -p:PublishSingleFile=false `
-  -o publish\win-x64
-```
+**Single-file aplikacji** jest celowo wyłączony: Media Foundation i natywne zależności działają stabilniej w trybie multi-file.
 
-**Single-file** jest celowo wyłączony: Media Foundation / natywne zależności bywają problematyczne przy single-file extract.
+Wyniki:
 
-Wynik: `publish\win-x64\MeetingAudioRecorder.exe`
+- `publish\win-x64\MeetingAudioRecorder.exe`
+- `publish\win-x64\MeetingAudioRecorder.BrowserBridge.exe`
+- `publish\win-x64\BrowserExtension\`
 
 ### Instalator Inno Setup
 
