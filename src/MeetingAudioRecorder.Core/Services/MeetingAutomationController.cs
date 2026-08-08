@@ -121,6 +121,18 @@ public sealed class MeetingAutomationController
         }
     }
 
+    public void NotifyAutomaticStopFailed(Guid recordingId)
+    {
+        if (recordingId == Guid.Empty)
+            throw new ArgumentException("Identyfikator nagrania nie może być pusty.", nameof(recordingId));
+
+        lock (_lock)
+        {
+            if (_ownedRecordingId == recordingId)
+                ResetDisconnectConfirmation();
+        }
+    }
+
     private MeetingAutomationDecision ObserveOwnedRecording(MeetingAutomationObservation observation)
     {
         if (!string.Equals(observation.MeetingId, _ownedMeetingId, StringComparison.Ordinal))

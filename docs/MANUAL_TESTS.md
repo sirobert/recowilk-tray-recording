@@ -33,12 +33,20 @@
 3. Rozpocznij nagranie, potem dołącz do Meet — obserwuj, czy Windows nie przełącza profilu.
 4. Jeśli endpoint znika: aplikacja kończy nagranie bezpiecznie i pokazuje komunikat (nie crashuje).
 
-## 5. Google Meet
+## 5. Google Meet — automatyczne nagrywanie R-012
 
-1. Dołącz do Meet ze znanym mikrofonem i słuchawkami.
-2. Uruchom nagrywanie skrótem.
-3. Mów i poproś drugą osobę o mówienie.
-4. Zatrzymaj — w pliku słychać Ciebie i drugą stronę (loopback ze słuchawek).
+Zapisz w raporcie: wersję Windows i aplikacji, typ konta Google, identyfikatory urządzeń audio, czas zdarzeń start/stop oraz wynik. Nie zapisuj tokenu OAuth ani listy uczestników.
+
+1. Utwórz wydarzenie Calendar z linkiem Meet rozpoczynające się w ciągu 15 minut. Połącz konto Google w aplikacji, włącz automatykę i zapisz ustawienia.
+2. Nie dołączaj do Meet. Oczekiwane: samo rozpoczęcie wydarzenia nie uruchamia nagrania.
+3. Dołącz tym samym kontem Google. Oczekiwane: start jednej sesji w ciągu około 5–10 s, zmiana ikony tray i powiadomienie.
+4. Mów i odtwórz głos drugiej osoby. Opuść spotkanie. Oczekiwane: zatrzymanie po około 15–20 s oraz poprawny MP3 z mikrofonem i loopback.
+5. Dołącz ponownie i podczas nagrania rozłącz się na mniej niż 15 s, po czym wróć. Oczekiwane: jedno ciągłe nagranie bez automatycznego stopu.
+6. Podczas automatycznego nagrania odłącz Internet na co najmniej 30 s. Oczekiwane: nagranie trwa; po odzyskaniu sieci monitoring wraca bez drugiego startu.
+7. Rozpocznij nagranie ręcznie, następnie dołącz i opuść wydarzenie Meet. Oczekiwane: automat nie przejmuje ani nie zatrzymuje ręcznej sesji.
+8. Rozpocznij sesję automatycznie, a następnie zatrzymaj ją ręcznie, pozostając w Meet. Oczekiwane: automat nie uruchamia jej ponownie aż do opuszczenia spotkania.
+9. Powtórz, wchodząc innym kontem lub anonimowo. Oczekiwane: brak automatycznego startu.
+10. Cofnij zgodę aplikacji na koncie Google podczas nagrania. Oczekiwane: komunikat o wymaganym logowaniu, ale brak automatycznego stopu i brak utraty materiału.
 
 ## 6. Microsoft Teams
 
@@ -196,3 +204,7 @@
 | 16 | Settings persist | |
 | 17 | Autostart on/off | |
 | 18 | Build bez ręcznych poprawek | |
+| 19 | Calendar bez dołączenia nie uruchamia nagrania | |
+| 20 | Obecność właściwego konta uruchamia jedną sesję | |
+| 21 | Potwierdzone wyjście zatrzymuje tylko sesję automatyczną | |
+| 22 | Brak sieci/API nie zatrzymuje aktywnego nagrania | |

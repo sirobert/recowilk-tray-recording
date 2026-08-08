@@ -9,7 +9,7 @@
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
     <AssemblyName>MeetingAudioRecorder</AssemblyName>
     <RootNamespace>MeetingAudioRecorder.App</RootNamespace>
-    <Version>1.0.2</Version>
+    <Version>1.1.0</Version>
     <Product>Meeting Audio Recorder</Product>
     <Company>MeetingAudioRecorder</Company>
     <Description>Nagrywanie mikrofonu i dźwięku ze słuchawek do MP3</Description>

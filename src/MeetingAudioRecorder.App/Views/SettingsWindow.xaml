@@ -140,6 +140,33 @@
                     </StackPanel>
                 </GroupBox>
 
+                <!-- Google Meet -->
+                <GroupBox Header="Google Meet — automatyczne nagrywanie">
+                    <StackPanel>
+                        <TextBlock Text="{Binding GoogleConnectionStatus}"
+                                   FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <WrapPanel Margin="0,0,0,8">
+                            <Button Content="Połącz z Google…"
+                                    Command="{Binding ConnectGoogleCommand}"
+                                    Padding="12,6" Margin="0,0,8,0"/>
+                            <Button Content="Odłącz konto"
+                                    Command="{Binding DisconnectGoogleCommand}"
+                                    Padding="12,6" Margin="0,0,8,0"/>
+                            <Button Content="Odśwież stan"
+                                    Command="{Binding RefreshGoogleConnectionCommand}"
+                                    Padding="12,6"/>
+                        </WrapPanel>
+                        <CheckBox Content="Automatycznie nagrywaj, gdy dołączę do spotkania z kalendarza"
+                                  IsChecked="{Binding GoogleMeetAutomationEnabled}"
+                                  IsEnabled="{Binding IsGoogleConnected}"
+                                  Margin="0,0,0,6"/>
+                        <TextBlock Text="{Binding GoogleAutomationStatus}"
+                                   Style="{StaticResource Hint}"/>
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="Wymagany jest plik OAuth typu Desktop app z Google Cloud. Kalendarz tylko wskazuje spotkanie; nagrywanie rozpoczyna się dopiero po wykryciu Twojej obecności w Google Meet."/>
+                    </StackPanel>
+                </GroupBox>
+
                 <!-- Opcje -->
                 <GroupBox Header="Opcje">
                     <StackPanel>
@@ -150,7 +177,7 @@
                 </GroupBox>
 
                 <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8"
-                           Text="Aplikacja działa wyłącznie lokalnie. Nie wysyła danych do Internetu. Użytkownik jest odpowiedzialny za uzyskanie zgody uczestników na nagrywanie."/>
+                           Text="Audio i gotowe nagrania pozostają lokalnie. Po włączeniu integracji aplikacja pobiera z Google wyłącznie potrzebne metadane Calendar/Meet. Użytkownik jest odpowiedzialny za uzyskanie zgody uczestników na nagrywanie."/>
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

@@ -18,6 +18,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IStartupService _startupService;
     private readonly IHotkeyService _hotkeyService;
     private readonly INotificationService _notificationService;
+    private readonly IGoogleAuthorizationService _googleAuthorizationService;
+    private readonly IMeetingAutomationService _meetingAutomationService;
     private readonly LevelMeterService _levelMeter;
     private readonly ILogger<SettingsViewModel> _logger;
 
@@ -44,6 +46,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private double _loopLevel;
     [ObservableProperty] private bool _isMicTesting;
     [ObservableProperty] private bool _isLoopTesting;
+    [ObservableProperty] private bool _googleMeetAutomationEnabled;
+    [ObservableProperty] private bool _isGoogleConnected;
+    [ObservableProperty] private bool _isGoogleBusy;
+    [ObservableProperty] private string _googleConnectionStatus = "Niepołączono z Google.";
+    [ObservableProperty] private string _googleAutomationStatus = "Automatyczne nagrywanie jest wyłączone.";
 
     public int[] AvailableBitrates { get; } = [128, 192, 256, 320];
     public int[] AvailableSampleRates { get; } = [44100, 48000];
@@ -64,6 +71,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IStartupService startupService,
         IHotkeyService hotkeyService,
         INotificationService notificationService,
+        IGoogleAuthorizationService googleAuthorizationService,
+        IMeetingAutomationService meetingAutomationService,
         LevelMeterService levelMeter,
         ILogger<SettingsViewModel> logger)
     {
@@ -72,12 +81,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _startupService = startupService;
         _hotkeyService = hotkeyService;
         _notificationService = notificationService;
+        _googleAuthorizationService = googleAuthorizationService;
+        _meetingAutomationService = meetingAutomationService;
         _levelMeter = levelMeter;
         _logger = logger;
 
         _levelMeter.LevelChanged += OnLevelChanged;
+        _meetingAutomationService.StatusChanged += OnMeetingAutomationStatusChanged;
         LoadFromSettings();
         RefreshDevices();
+        _ = RefreshGoogleConnectionSafeAsync();
     }
 
     public void LoadFromSettings()
@@ -97,6 +110,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         HotkeyAlt = s.Hotkey.Alt;
         HotkeyShift = s.Hotkey.Shift;
         HotkeyWindows = s.Hotkey.Windows;
+        GoogleMeetAutomationEnabled = s.GoogleMeetAutomationEnabled;
+        GoogleAutomationStatus = _meetingAutomationService.Status.Message;
         OnPropertyChanged(nameof(HotkeyPreview));
     }
 
@@ -132,11 +147,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void Save()
+    private async Task SaveAsync()
     {
         try
         {
             StopTests();
+
+            if (GoogleMeetAutomationEnabled && !IsGoogleConnected)
+            {
+                StatusMessage = "Najpierw połącz konto Google.";
+                MessageBox.Show(StatusMessage, "Google Meet", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
             var settings = _settingsService.Current;
             settings.MicrophoneDeviceId = SelectedMicrophone?.Id ?? string.Empty;
@@ -150,6 +172,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             settings.KeepSeparateTracks = KeepSeparateTracks;
             settings.OpenFolderAfterRecording = OpenFolderAfterRecording;
             settings.FileNameFormat = FileNameFormat;
+            settings.GoogleMeetAutomationEnabled = GoogleMeetAutomationEnabled;
             settings.Hotkey = new HotkeySettings
             {
                 Key = HotkeyKey,
@@ -194,12 +217,147 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             StatusMessage = "Ustawienia zapisane.";
             _notificationService.ShowInfo("Ustawienia", "Ustawienia zostały zapisane.");
+            await _meetingAutomationService.CheckNowAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Zapis ustawień");
             MessageBox.Show("Nie udało się zapisać ustawień: " + ex.Message, "Błąd",
                 MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ConnectGoogleAsync()
+    {
+        if (IsGoogleBusy)
+            return;
+
+        var dialog = new OpenFileDialog
+        {
+            Title = "Wybierz konfigurację OAuth Google typu Desktop app",
+            Filter = "Konfiguracja Google OAuth (*.json)|*.json|Wszystkie pliki (*.*)|*.*",
+            CheckFileExists = true,
+            Multiselect = false,
+            InitialDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Downloads")
+        };
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var wasConnected = IsGoogleConnected;
+        IsGoogleBusy = true;
+        GoogleConnectionStatus = "Łączenie z Google w przeglądarce…";
+        try
+        {
+            var connection = await _googleAuthorizationService.ConnectAsync(dialog.FileName).ConfigureAwait(true);
+            IsGoogleConnected = connection.IsConnected;
+            GoogleConnectionStatus = connection.IsConnected
+                ? $"Połączono: {connection.AccountEmail}"
+                : "Niepołączono z Google.";
+            StatusMessage = connection.IsConnected
+                ? "Konto Google zostało połączone. Włącz automatykę i zapisz ustawienia."
+                : "Nie udało się połączyć konta Google.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Łączenie konta Google");
+            IsGoogleConnected = wasConnected;
+            if (!wasConnected)
+                GoogleMeetAutomationEnabled = false;
+            GoogleConnectionStatus = wasConnected
+                ? "Nie udało się zmienić konta. Poprzednie połączenie pozostaje aktywne."
+                : "Nie udało się połączyć z Google.";
+            MessageBox.Show(ex.Message, "Google Meet", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            IsGoogleBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task DisconnectGoogleAsync()
+    {
+        if (IsGoogleBusy || !IsGoogleConnected)
+            return;
+
+        var answer = MessageBox.Show(
+            "Odłączyć konto Google i wyłączyć automatyczne nagrywanie spotkań?",
+            "Google Meet",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (answer != MessageBoxResult.Yes)
+            return;
+
+        IsGoogleBusy = true;
+        try
+        {
+            await _googleAuthorizationService.DisconnectAsync().ConfigureAwait(true);
+            IsGoogleConnected = false;
+            GoogleMeetAutomationEnabled = false;
+            GoogleConnectionStatus = "Niepołączono z Google.";
+
+            var settings = _settingsService.Current;
+            settings.GoogleMeetAutomationEnabled = false;
+            _settingsService.Save(settings);
+            await _meetingAutomationService.CheckNowAsync().ConfigureAwait(true);
+            StatusMessage = "Konto Google zostało odłączone.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Odłączanie konta Google");
+            MessageBox.Show(ex.Message, "Google Meet", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            IsGoogleBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshGoogleConnectionAsync()
+    {
+        if (IsGoogleBusy)
+            return;
+
+        IsGoogleBusy = true;
+        try
+        {
+            var connection = await _googleAuthorizationService.GetConnectionInfoAsync().ConfigureAwait(true);
+            IsGoogleConnected = connection.IsConnected;
+            GoogleConnectionStatus = connection.IsConnected
+                ? $"Połączono: {connection.AccountEmail}"
+                : "Niepołączono z Google.";
+            if (!connection.IsConnected)
+                GoogleMeetAutomationEnabled = false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Odświeżanie stanu konta Google");
+            IsGoogleConnected = false;
+            GoogleMeetAutomationEnabled = false;
+            GoogleConnectionStatus = "Nie można odczytać połączenia Google.";
+        }
+        finally
+        {
+            IsGoogleBusy = false;
+        }
+    }
+
+    private async Task RefreshGoogleConnectionSafeAsync()
+    {
+        try
+        {
+            await RefreshGoogleConnectionAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Odczyt stanu konta Google");
+            IsGoogleConnected = false;
+            GoogleMeetAutomationEnabled = false;
+            GoogleConnectionStatus = "Nie można odczytać połączenia Google.";
         }
     }
 
@@ -295,6 +453,20 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _ = dispatcher.InvokeAsync(Apply);
     }
 
+    private void OnMeetingAutomationStatusChanged(object? sender, MeetingAutomationStatus status)
+    {
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher is null)
+            return;
+
+        void Apply() => GoogleAutomationStatus = status.Message;
+
+        if (dispatcher.CheckAccess())
+            Apply();
+        else
+            _ = dispatcher.InvokeAsync(Apply);
+    }
+
     public void StopTests()
     {
         _levelMeter.Stop();
@@ -313,6 +485,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _levelMeter.LevelChanged -= OnLevelChanged;
+        _meetingAutomationService.StatusChanged -= OnMeetingAutomationStatusChanged;
         StopTests();
         _levelMeter.Dispose();
     }

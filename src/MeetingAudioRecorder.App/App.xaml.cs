@@ -8,6 +8,7 @@ using MeetingAudioRecorder.App.Views;
 using MeetingAudioRecorder.Audio.DependencyInjection;
 using MeetingAudioRecorder.Core.Interfaces;
 using MeetingAudioRecorder.Core.Models;
+using MeetingAudioRecorder.Core.Services;
 using MeetingAudioRecorder.Infrastructure.DependencyInjection;
 using MeetingAudioRecorder.Infrastructure.Logging;
 using Microsoft.Extensions.DependencyInjection;
@@ -158,6 +159,9 @@ public partial class App : Application
         }
 
         _logger.LogInformation("Aplikacja gotowa (tray). Skrót: {Hotkey}", settings.Hotkey.DisplayText);
+
+        var meetingAutomation = _services.GetRequiredService<IMeetingAutomationService>();
+        _ = meetingAutomation.StartAsync();
     }
 
     private void ConfigureServices(IServiceCollection services)
@@ -167,6 +171,7 @@ public partial class App : Application
 
         services.AddSingleton<IHotkeyService, HotkeyService>();
         services.AddSingleton<INotificationService, TrayNotificationService>();
+        services.AddSingleton<IMeetingAutomationService, MeetingAutomationService>();
 
         services.AddTransient<SettingsViewModel>();
         services.AddSingleton<TrayViewModel>(sp =>
@@ -294,13 +299,18 @@ public partial class App : Application
             _hotkeyService?.Dispose();
             _tray?.Dispose();
 
+            var meetingAutomation = _services?.GetService<IMeetingAutomationService>();
+            if (meetingAutomation is not null)
+                await meetingAutomation.StopAsync();
+
             var coordinator = _services?.GetService<IRecordingCoordinator>();
             if (coordinator is not null)
                 await coordinator.DisposeAsync();
 
             _services?.GetService<IAudioDeviceService>()?.Dispose();
             _singleInstance?.Dispose();
-            _services?.Dispose();
+            if (_services is not null)
+                await _services.DisposeAsync();
             SerilogSetup.CloseAndFlush();
         }
         catch

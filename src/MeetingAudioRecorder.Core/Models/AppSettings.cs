@@ -18,6 +18,7 @@ public sealed class AppSettings
     public bool OpenFolderAfterRecording { get; set; }
     public string FileNameFormat { get; set; } = "Nagranie_yyyy-MM-dd_HH-mm-ss.mp3";
     public bool ConsentAcknowledged { get; set; }
+    public bool GoogleMeetAutomationEnabled { get; set; }
 
     public static AppSettings CreateDefault()
     {
@@ -41,7 +42,8 @@ public sealed class AppSettings
             KeepSeparateTracks = false,
             OpenFolderAfterRecording = false,
             FileNameFormat = "Nagranie_yyyy-MM-dd_HH-mm-ss.mp3",
-            ConsentAcknowledged = false
+            ConsentAcknowledged = false,
+            GoogleMeetAutomationEnabled = false
         };
     }
 
@@ -59,6 +61,7 @@ public sealed class AppSettings
         KeepSeparateTracks = KeepSeparateTracks,
         OpenFolderAfterRecording = OpenFolderAfterRecording,
         FileNameFormat = FileNameFormat,
-        ConsentAcknowledged = ConsentAcknowledged
+        ConsentAcknowledged = ConsentAcknowledged,
+        GoogleMeetAutomationEnabled = GoogleMeetAutomationEnabled
     };
 }

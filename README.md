@@ -24,7 +24,8 @@ Przeznaczona do nagrywania spotkań (Google Meet, Microsoft Teams, Zoom itd.) z 
 - Pojedyncza instancja (named Mutex)
 - Konfiguracja JSON w profilu użytkownika
 - Logi z rotacją (bez treści audio)
-- Działa **wyłącznie lokalnie** — brak telemetrii, chmury i połączeń sieciowych
+- Opcjonalna automatyka Google Meet: Calendar wskazuje wydarzenie, a obecność użytkownika steruje startem i stopem
+- Audio, nagrania i logi pozostają lokalne; brak telemetrii i wysyłania nagrań do chmury
 
 ---
 
@@ -146,6 +147,17 @@ dotnet test MeetingAudioRecorder.slnx -c Release
 7. Ponownie **Ctrl+Alt+R** — stop, przetwarzanie, plik MP3 w folderze nagrań  
    (domyślnie `Dokumenty\Nagrania spotkań`).
 
+### Opcjonalne automatyczne nagrywanie Google Meet
+
+1. W Google Cloud utwórz projekt i klienta OAuth typu **Desktop app**.
+2. Włącz Google Calendar API, Google Meet REST API oraz dostęp OpenID Connect.
+3. Pobierz plik `client_secret*.json`; nie dodawaj go do Git ani nie udostępniaj publicznie.
+4. W aplikacji otwórz **Ustawienia → Google Meet → Połącz z Google…** i wybierz pobrany JSON.
+5. Zaloguj się w systemowej przeglądarce oraz zaakceptuj dostęp tylko do odczytu Calendar/Meet.
+6. Zaznacz **Automatycznie nagrywaj, gdy dołączę do spotkania z kalendarza** i zapisz ustawienia.
+
+Samo rozpoczęcie wydarzenia nie uruchamia nagrania. Aplikacja zaczyna nagrywać dopiero po wykryciu połączonego konta w aktywnej konferencji i zatrzymuje własną sesję po trzech potwierdzeniach wyjścia w czasie co najmniej 15 sekund. Do Meet trzeba wejść tym samym kontem, które połączono z rejestratorem.
+
 ---
 
 ## Ustawienia
@@ -166,6 +178,7 @@ Plik: `%LOCALAPPDATA%\MeetingAudioRecorder\settings.json`
 | `keepSeparateTracks` | Dodatkowe WAV | false |
 | `openFolderAfterRecording` | Otwórz folder po zapisie | false |
 | `fileNameFormat` | Wzorzec nazwy | `Nagranie_yyyy-MM-dd_HH-mm-ss.mp3` |
+| `googleMeetAutomationEnabled` | Automatyczny start/stop dla Google Meet | false |
 
 Przy uszkodzonym JSON: kopia `.corrupt.*.bak`, domyślne wartości, aplikacja działa dalej.
 
@@ -201,16 +214,21 @@ Przy uszkodzonym JSON: kopia `.corrupt.*.bak`, domyślne wartości, aplikacja dz
 | Ikona nie widać | Tray → „Pokaż ukryte ikony” |
 | Logi | `%LOCALAPPDATA%\MeetingAudioRecorder\Logs` |
 | Temp / odzyskiwanie | `%LOCALAPPDATA%\MeetingAudioRecorder\Temp` |
+| Automatyka Google nie startuje | To samo konto w aplikacji i Meet; wydarzenie ma link Meet; zaproszenie nie jest odrzucone |
+| Google prosi o ponowne logowanie | Połącz konto ponownie; dostęp mógł zostać cofnięty lub token wygasł |
 
 ---
 
 ## Prywatność
 
-- Brak telemetrii, analityki, reklam, chmury.
+- Brak telemetrii, analityki i reklam.
 - Brak wysyłania nagrań i logów na zewnątrz.
 - Treść audio **nie** jest logowana.
 - Nagrywanie jest **zawsze widoczne** na ikonie tray.
-- Dane: lokalne pliki MP3 + settings + logi w profilu użytkownika.
+- Bez włączonej automatyki aplikacja nie łączy się z Google.
+- Po włączeniu automatyki pobierane są minimalne metadane Calendar/Meet potrzebne do wykrycia wydarzenia i obecności bieżącego konta. Listy uczestników nie są zapisywane.
+- Token OAuth jest szyfrowany przez Windows DPAPI dla bieżącego użytkownika.
+- Dane lokalne: MP3, ustawienia, zaszyfrowany token i logi w profilu użytkownika.
 
 ---
 

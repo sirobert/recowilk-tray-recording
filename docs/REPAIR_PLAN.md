@@ -131,7 +131,7 @@ Akceptacja: kodowanie do ścieżki `*.mp3.partial` tworzy czytelny MP3, a źród
 
 #### R-012: automatyczne nagrywanie spotkań Google Meet
 
-Status: deterministyczna maszyna stanów, pełny OAuth desktop z PKCE i szyfrowanym magazynem oraz testowane klienty Calendar/Meet zakończone; integracja automatyki z aplikacją i testy ręczne oczekują na implementację.
+Status: implementacja aplikacji 1.1.0 i testy automatyczne zakończone; prawdziwy login OAuth, spotkanie Google Meet oraz test instalatora oczekują na wykonanie.
 
 - Używaj Google Calendar wyłącznie do wskazania kandydatów zawierających link Google Meet.
 - Rozpoczynaj nagrywanie dopiero po potwierdzeniu, że konto połączone z aplikacją jest aktywnym uczestnikiem konferencji.
@@ -170,4 +170,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-07-26 | R-009 | Diagnostyka i test Windows Media Foundation | 77 testów domyślnych + 1 opt-in MF; build bez ostrzeżeń | Opt-in MF przeszedł; audyt NuGet bez znanych podatności; testy WASAPI/BT/4 h nadal manualne |
 | 2026-07-26 | R-010 | Kontrakt XAML okna ustawień | Test regresyjny wymusza `Mode=OneWay` dla `HotkeyPreview` | Wymagane potwierdzenie otwarcia ustawień z tray po instalacji 1.0.1 |
 | 2026-07-26 | R-011 | Windows 11, Media Foundation, `*.mp3.partial` | Test przed poprawką odtwarzał wyjątek sink writera; po poprawce tworzy czytelny MP3 | Zachowane źródła dwóch sesji użytkownika; wymagany test recovery i nagrania w 1.0.2 |
-| 2026-08-08 | R-012, logika domenowa, OAuth i klienci REST | .NET 8, Windows DPAPI, OAuth PKCE, podstawiony HTTP bez sieci i urządzeń | 7/7 automatyki oraz 15/15 token/OAuth/Calendar/Meet; build Release 0 ostrzeżeń | Pełna brama: 97 testów przeszło, 1 test MF opt-in pominięty, 3 istniejące testy koordynatora niewykonalne w sandboxie z powodu zakazu zapisu do `%LocalAppData%`; wymagany interaktywny login OAuth i test manualny Meet |
+| 2026-08-08 | R-012, aplikacja 1.1.0 | .NET 8, WPF, Windows DPAPI, OAuth PKCE, podstawiony HTTP bez sieci i urządzeń | 7/7 kontrolera, 4/4 usługi tła, 2/2 kontraktu UI oraz 15/15 token/OAuth/Calendar/Meet; build Release 0 ostrzeżeń | Pełna brama: 102 testy przeszły, 1 test MF opt-in pominięty, 3 istniejące testy koordynatora niewykonalne w sandboxie z powodu zakazu zapisu do `%LocalAppData%`; wymagany prawdziwy login OAuth, Meet i test instalatora |
