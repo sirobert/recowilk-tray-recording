@@ -2,6 +2,7 @@ using System.Net;
 using MeetingAudioRecorder.Core.Interfaces;
 using MeetingAudioRecorder.Core.Models;
 using MeetingAudioRecorder.Infrastructure.Google;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
 namespace MeetingAudioRecorder.Audio.Tests;
@@ -12,6 +13,20 @@ public sealed class GoogleOAuthAuthorizationServiceTests : IDisposable
     private readonly string _directory = Path.Combine(
         Path.GetTempPath(),
         "mar-google-oauth-tests-" + Guid.NewGuid().ToString("N"));
+
+    [Fact]
+    public void DependencyInjection_ResolvesAuthorizationServiceWithTypedHttpClient()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(Mock.Of<IGoogleTokenStore>());
+        services.AddSingleton(Mock.Of<IGoogleOAuthUserConsent>());
+        services.AddHttpClient<IGoogleAuthorizationService, GoogleOAuthAuthorizationService>();
+        using var provider = services.BuildServiceProvider();
+
+        var service = provider.GetRequiredService<IGoogleAuthorizationService>();
+
+        Assert.IsType<GoogleOAuthAuthorizationService>(service);
+    }
 
     [Fact]
     public async Task Connect_UsesPkceAndStoresAuthenticatedIdentity()

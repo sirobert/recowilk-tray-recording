@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MeetingAudioRecorder.Core.Interfaces;
 using MeetingAudioRecorder.Core.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MeetingAudioRecorder.Infrastructure.Google;
 
@@ -17,6 +18,7 @@ public sealed class GoogleAccessTokenProvider : IGoogleAccessTokenProvider
     private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
 
+    [ActivatorUtilitiesConstructor]
     public GoogleAccessTokenProvider(IGoogleTokenStore tokenStore, HttpClient httpClient)
         : this(tokenStore, httpClient, TimeProvider.System)
     {

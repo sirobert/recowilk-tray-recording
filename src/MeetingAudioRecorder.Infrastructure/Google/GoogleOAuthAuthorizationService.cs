@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MeetingAudioRecorder.Core.Interfaces;
 using MeetingAudioRecorder.Core.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MeetingAudioRecorder.Infrastructure.Google;
 
@@ -32,6 +33,7 @@ public sealed class GoogleOAuthAuthorizationService : IGoogleAuthorizationServic
     private readonly IGoogleOAuthUserConsent _userConsent;
     private readonly TimeProvider _timeProvider;
 
+    [ActivatorUtilitiesConstructor]
     public GoogleOAuthAuthorizationService(
         IGoogleTokenStore tokenStore,
         HttpClient httpClient,

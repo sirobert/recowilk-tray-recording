@@ -2,6 +2,7 @@ using System.Net;
 using MeetingAudioRecorder.Core.Interfaces;
 using MeetingAudioRecorder.Core.Models;
 using MeetingAudioRecorder.Infrastructure.Google;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
 namespace MeetingAudioRecorder.Audio.Tests;
@@ -9,6 +10,19 @@ namespace MeetingAudioRecorder.Audio.Tests;
 public sealed class GoogleAccessTokenProviderTests
 {
     private static readonly DateTimeOffset Now = new(2026, 8, 8, 12, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void DependencyInjection_ResolvesAccessTokenProviderWithTypedHttpClient()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(Mock.Of<IGoogleTokenStore>());
+        services.AddHttpClient<IGoogleAccessTokenProvider, GoogleAccessTokenProvider>();
+        using var provider = services.BuildServiceProvider();
+
+        var tokenProvider = provider.GetRequiredService<IGoogleAccessTokenProvider>();
+
+        Assert.IsType<GoogleAccessTokenProvider>(tokenProvider);
+    }
 
     [Fact]
     public async Task ValidStoredToken_IsReturnedWithoutNetworkCall()
