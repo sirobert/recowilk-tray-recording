@@ -25,6 +25,11 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IFileNameService, FileNameService>();
         services.AddSingleton<IDiskSpaceService, DiskSpaceService>();
         services.AddSingleton<IGoogleTokenStore, ProtectedFileGoogleTokenStore>();
+        services.AddSingleton<IGoogleOAuthUserConsent, GoogleLoopbackOAuthUserConsent>();
+        services.AddHttpClient<IGoogleAuthorizationService, GoogleOAuthAuthorizationService>();
+        services.AddHttpClient<IGoogleAccessTokenProvider, GoogleAccessTokenProvider>();
+        services.AddHttpClient<IGoogleCalendarClient, GoogleCalendarClient>();
+        services.AddHttpClient<IGoogleMeetClient, GoogleMeetClient>();
         return services;
     }
 }
