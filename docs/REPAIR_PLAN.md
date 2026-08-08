@@ -129,6 +129,20 @@ Status: poprawka i test Media Foundation zakończone; wymagane odzyskanie zachow
 
 Akceptacja: kodowanie do ścieżki `*.mp3.partial` tworzy czytelny MP3, a źródła są usuwane dopiero po publikacji wyniku.
 
+#### R-012: automatyczne nagrywanie spotkań Google Meet
+
+Status: deterministyczna maszyna stanów i testy bez Google ani urządzeń audio zakończone; OAuth, klienci API, integracja aplikacji i testy ręczne oczekują na implementację.
+
+- Używaj Google Calendar wyłącznie do wskazania kandydatów zawierających link Google Meet.
+- Rozpoczynaj nagrywanie dopiero po potwierdzeniu, że konto połączone z aplikacją jest aktywnym uczestnikiem konferencji.
+- Zatrzymuj wyłącznie nagranie rozpoczęte przez automat i tylko po potwierdzonym wyjściu użytkownika.
+- Błędy autoryzacji, limity API, timeouty i brak sieci traktuj jako stan niepewny; nie mogą samodzielnie zatrzymać nagrania.
+- Nie zapisuj listy uczestników, tokenów OAuth ani opisu wydarzenia w logach.
+- Token odświeżania przechowuj lokalnie, zaszyfrowany dla bieżącego użytkownika Windows.
+- Zachowaj ręczny start/stop jako niezależny i nadrzędny sposób sterowania.
+
+Akceptacja: samo rozpoczęcie wydarzenia nie uruchamia capture; wejście właściwego użytkownika uruchamia jedną sesję, potwierdzone wyjście zatrzymuje tę samą sesję, chwilowa utrata API jej nie zatrzymuje, a sesja ręczna nigdy nie jest przejmowana przez automat.
+
 ## Strategia commitów
 
 1. `test: reproduce loopback timeline duplication`
@@ -156,3 +170,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-07-26 | R-009 | Diagnostyka i test Windows Media Foundation | 77 testów domyślnych + 1 opt-in MF; build bez ostrzeżeń | Opt-in MF przeszedł; audyt NuGet bez znanych podatności; testy WASAPI/BT/4 h nadal manualne |
 | 2026-07-26 | R-010 | Kontrakt XAML okna ustawień | Test regresyjny wymusza `Mode=OneWay` dla `HotkeyPreview` | Wymagane potwierdzenie otwarcia ustawień z tray po instalacji 1.0.1 |
 | 2026-07-26 | R-011 | Windows 11, Media Foundation, `*.mp3.partial` | Test przed poprawką odtwarzał wyjątek sink writera; po poprawce tworzy czytelny MP3 | Zachowane źródła dwóch sesji użytkownika; wymagany test recovery i nagrania w 1.0.2 |
+| 2026-08-08 | R-012, logika domenowa | .NET 8, testy bez sieci i urządzeń | 7/7 nowych testów; build Release 0 ostrzeżeń | Pełna brama: 82 testy przeszły, 1 test MF opt-in pominięty, 3 istniejące testy koordynatora niewykonalne w sandboxie z powodu zakazu zapisu do `%LocalAppData%`; wymagane OAuth/API i test manualny Meet |
