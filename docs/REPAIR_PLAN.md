@@ -131,7 +131,7 @@ Akceptacja: kodowanie do ścieżki `*.mp3.partial` tworzy czytelny MP3, a źród
 
 #### R-012: automatyczne nagrywanie spotkań Google Meet
 
-Status: implementacja aplikacji 1.1.0 i testy automatyczne zakończone; prawdziwy login OAuth, spotkanie Google Meet oraz test instalatora oczekują na wykonanie.
+Status: implementacja aplikacji 1.1.0, testy automatyczne i budowa instalatora zakończone; prawdziwy login OAuth oraz spotkanie Google Meet oczekują na wykonanie.
 
 - Używaj Google Calendar wyłącznie do wskazania kandydatów zawierających link Google Meet.
 - Rozpoczynaj nagrywanie dopiero po potwierdzeniu, że konto połączone z aplikacją jest aktywnym uczestnikiem konferencji.
@@ -170,4 +170,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-07-26 | R-009 | Diagnostyka i test Windows Media Foundation | 77 testów domyślnych + 1 opt-in MF; build bez ostrzeżeń | Opt-in MF przeszedł; audyt NuGet bez znanych podatności; testy WASAPI/BT/4 h nadal manualne |
 | 2026-07-26 | R-010 | Kontrakt XAML okna ustawień | Test regresyjny wymusza `Mode=OneWay` dla `HotkeyPreview` | Wymagane potwierdzenie otwarcia ustawień z tray po instalacji 1.0.1 |
 | 2026-07-26 | R-011 | Windows 11, Media Foundation, `*.mp3.partial` | Test przed poprawką odtwarzał wyjątek sink writera; po poprawce tworzy czytelny MP3 | Zachowane źródła dwóch sesji użytkownika; wymagany test recovery i nagrania w 1.0.2 |
-| 2026-08-08 | R-012, aplikacja 1.1.0 | .NET 8, WPF, Windows DPAPI, OAuth PKCE, podstawiony HTTP bez sieci i urządzeń | 7/7 kontrolera, 4/4 usługi tła, 2/2 kontraktu UI oraz 15/15 token/OAuth/Calendar/Meet; build Release 0 ostrzeżeń | Pełna brama: 102 testy przeszły, 1 test MF opt-in pominięty, 3 istniejące testy koordynatora niewykonalne w sandboxie z powodu zakazu zapisu do `%LocalAppData%`; wymagany prawdziwy login OAuth, Meet i test instalatora |
+| 2026-08-08 | R-012, aplikacja 1.1.0 | .NET 8, WPF, Windows DPAPI, OAuth PKCE, podstawiony HTTP bez sieci i urządzeń | 7/7 kontrolera, 4/4 usługi tła, 2/2 kontraktu UI oraz 15/15 token/OAuth/Calendar/Meet; build Release 0 ostrzeżeń; instalator 1.1.0 zbudowany | Pełna brama: 102 testy przeszły, 1 test MF opt-in pominięty, 3 istniejące testy koordynatora niewykonalne w sandboxie z powodu zakazu zapisu do `%LocalAppData%`; `MeetingAudioRecorder-Setup-1.1.0.exe`, SHA-256 `424CD1D2FBA815371C9841693EBEE56DDB017E41BA741D81C85A3CF42608B279`; wymagany prawdziwy login OAuth i Meet |
