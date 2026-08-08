@@ -8,7 +8,7 @@ namespace MeetingAudioRecorder.Infrastructure.Google;
 
 public sealed class ProtectedFileGoogleTokenStore : IGoogleTokenStore
 {
-    private const int CurrentVersion = 1;
+    private const int CurrentVersion = 2;
     private static readonly byte[] OptionalEntropy =
         Encoding.UTF8.GetBytes("MeetingAudioRecorder.GoogleOAuthToken.v1");
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -130,7 +130,9 @@ public sealed class ProtectedFileGoogleTokenStore : IGoogleTokenStore
         if (string.IsNullOrWhiteSpace(token.AccessToken)
             || string.IsNullOrWhiteSpace(token.RefreshToken)
             || string.IsNullOrWhiteSpace(token.AccountEmail)
-            || string.IsNullOrWhiteSpace(token.AccountUserId))
+            || string.IsNullOrWhiteSpace(token.AccountUserId)
+            || string.IsNullOrWhiteSpace(token.ClientId)
+            || string.IsNullOrWhiteSpace(token.TokenEndpoint))
         {
             throw new InvalidDataException("Token Google nie zawiera wymaganych danych.");
         }

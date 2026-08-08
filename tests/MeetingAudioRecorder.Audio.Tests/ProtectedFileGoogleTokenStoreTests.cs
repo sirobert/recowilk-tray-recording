@@ -27,6 +27,9 @@ public sealed class ProtectedFileGoogleTokenStoreTests : IDisposable
         Assert.Equal(token.ExpiresAtUtc, loaded.ExpiresAtUtc);
         Assert.Equal(token.AccountEmail, loaded.AccountEmail);
         Assert.Equal(token.AccountUserId, loaded.AccountUserId);
+        Assert.Equal(token.ClientId, loaded.ClientId);
+        Assert.Equal(token.ClientSecret, loaded.ClientSecret);
+        Assert.Equal(token.TokenEndpoint, loaded.TokenEndpoint);
         Assert.Equal(token.GrantedScopes, loaded.GrantedScopes);
         Assert.DoesNotContain(token.AccessToken, persistedText, StringComparison.Ordinal);
         Assert.DoesNotContain(token.RefreshToken, persistedText, StringComparison.Ordinal);
@@ -80,6 +83,9 @@ public sealed class ProtectedFileGoogleTokenStoreTests : IDisposable
             ExpiresAtUtc = new DateTimeOffset(2026, 8, 8, 12, 0, 0, TimeSpan.Zero),
             AccountEmail = "recorder@example.com",
             AccountUserId = "users/1234567890",
+            ClientId = "desktop-client-id",
+            ClientSecret = "desktop-client-secret",
+            TokenEndpoint = "https://oauth2.googleapis.com/token",
             GrantedScopes =
             [
                 "openid",
