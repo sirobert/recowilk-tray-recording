@@ -59,6 +59,53 @@ public sealed class MeetingAutomationServiceTests
     }
 
     [Fact]
+    public async Task ActiveMeetLinkWithoutCalendarEvent_StartsAutomaticRecording()
+    {
+        var fixture = new Fixture();
+        fixture.Calendar.Setup(value => value.ListMeetingCandidatesAsync(
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        fixture.ActiveMeetLinks.Setup(value => value.GetActiveLinksAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                new BrowserMeetLink("tcu-ysxp-tvw", "chrome", Now)
+            ]);
+
+        await fixture.Service.CheckNowAsync();
+
+        fixture.Meet.Verify(value => value.GetCurrentUserPresenceAsync(
+            "tcu-ysxp-tvw",
+            "users/me-123",
+            It.IsAny<CancellationToken>()), Times.Once);
+        fixture.Coordinator.Verify(value => value.StartRecordingWithDevicesAsync(
+            It.IsAny<RecordingDeviceSelection>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal("Google Meet tcu-ysxp-tvw", fixture.Service.Status.MeetingTitle);
+    }
+
+    [Fact]
+    public async Task BrowserStateChange_TriggersCheckWithoutWaitingForCalendarPoll()
+    {
+        var fixture = new Fixture();
+        fixture.Calendar.Setup(value => value.ListMeetingCandidatesAsync(
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<DateTimeOffset>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        fixture.ActiveMeetLinks.Setup(value => value.GetActiveLinksAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new BrowserMeetLink("tcu-ysxp-tvw", "chrome", Now)]);
+
+        fixture.ActiveMeetLinks.Raise(value => value.ActiveLinksChanged += null, EventArgs.Empty);
+        await fixture.AutomaticStartSignal.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        fixture.Coordinator.Verify(value => value.StartRecordingWithDevicesAsync(
+            It.IsAny<RecordingDeviceSelection>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task ThreeConfirmedAbsencesAfterGrace_StopOwnedRecording()
     {
         var fixture = new Fixture();
@@ -136,6 +183,8 @@ public sealed class MeetingAutomationServiceTests
             DeviceResolver.Setup(value => value.DetectActiveBrowserDevices(
                     It.IsAny<string>(), It.IsAny<string>()))
                 .Returns(new BrowserAudioDeviceSelection("browser-mic", "browser-out", "chrome"));
+            ActiveMeetLinks.Setup(value => value.GetActiveLinksAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
 
             Coordinator.SetupGet(value => value.State).Returns(() => RecordingState);
             Coordinator.SetupGet(value => value.CanStart).Returns(() =>
@@ -157,6 +206,7 @@ public sealed class MeetingAutomationServiceTests
                         LoopbackTempPath = "loop.tmp.wav",
                         SettingsSnapshot = RecordingSettingsSnapshot.From(_settings)
                     };
+                    AutomaticStartSignal.TrySetResult();
                 })
                 .Returns(Task.CompletedTask);
             Coordinator.Setup(value => value.StopRecordingAsync(It.IsAny<CancellationToken>()))
@@ -172,6 +222,7 @@ public sealed class MeetingAutomationServiceTests
                 Authorization.Object,
                 Calendar.Object,
                 Meet.Object,
+                ActiveMeetLinks.Object,
                 DeviceResolver.Object,
                 Coordinator.Object,
                 Mock.Of<INotificationService>(),
@@ -182,8 +233,10 @@ public sealed class MeetingAutomationServiceTests
         public Mock<IGoogleAuthorizationService> Authorization { get; } = new();
         public Mock<IGoogleCalendarClient> Calendar { get; } = new();
         public Mock<IGoogleMeetClient> Meet { get; } = new();
+        public Mock<IActiveMeetLinkProvider> ActiveMeetLinks { get; } = new();
         public Mock<IMeetingAudioDeviceResolver> DeviceResolver { get; } = new();
         public Mock<IRecordingCoordinator> Coordinator { get; } = new();
+        public TaskCompletionSource AutomaticStartSignal { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public FakeTimeProvider Time { get; } = new(Now);
         public MeetingAutomationService Service { get; }
         public MeetingPresenceStatus Presence { get; set; } = MeetingPresenceStatus.Present;

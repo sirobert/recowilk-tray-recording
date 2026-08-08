@@ -20,6 +20,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly INotificationService _notificationService;
     private readonly IGoogleAuthorizationService _googleAuthorizationService;
     private readonly IMeetingAutomationService _meetingAutomationService;
+    private readonly IBrowserExtensionInstaller _browserExtensionInstaller;
     private readonly LevelMeterService _levelMeter;
     private readonly ILogger<SettingsViewModel> _logger;
 
@@ -51,6 +52,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isGoogleBusy;
     [ObservableProperty] private string _googleConnectionStatus = "Niepołączono z Google.";
     [ObservableProperty] private string _googleAutomationStatus = "Automatyczne nagrywanie jest wyłączone.";
+    [ObservableProperty] private string _browserExtensionStatus = "Rozszerzenie nie zostało jeszcze przygotowane.";
 
     public int[] AvailableBitrates { get; } = [128, 192, 256, 320];
     public int[] AvailableSampleRates { get; } = [44100, 48000];
@@ -73,6 +75,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         INotificationService notificationService,
         IGoogleAuthorizationService googleAuthorizationService,
         IMeetingAutomationService meetingAutomationService,
+        IBrowserExtensionInstaller browserExtensionInstaller,
         LevelMeterService levelMeter,
         ILogger<SettingsViewModel> logger)
     {
@@ -83,6 +86,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _notificationService = notificationService;
         _googleAuthorizationService = googleAuthorizationService;
         _meetingAutomationService = meetingAutomationService;
+        _browserExtensionInstaller = browserExtensionInstaller;
         _levelMeter = levelMeter;
         _logger = logger;
 
@@ -358,6 +362,38 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             IsGoogleConnected = false;
             GoogleMeetAutomationEnabled = false;
             GoogleConnectionStatus = "Nie można odczytać połączenia Google.";
+        }
+    }
+
+    [RelayCommand]
+    private Task PrepareChromeExtensionAsync()
+        => PrepareBrowserExtensionAsync(SupportedBrowser.Chrome);
+
+    [RelayCommand]
+    private Task PrepareEdgeExtensionAsync()
+        => PrepareBrowserExtensionAsync(SupportedBrowser.Edge);
+
+    private async Task PrepareBrowserExtensionAsync(SupportedBrowser browser)
+    {
+        try
+        {
+            var result = await _browserExtensionInstaller.PrepareAsync(browser).ConfigureAwait(true);
+            Clipboard.SetText(result.ExtensionDirectory);
+            BrowserExtensionStatus = $"Pakiet gotowy. ID: {result.ExtensionId}. Ścieżka została skopiowana.";
+            MessageBox.Show(
+                "1. Włącz Tryb dewelopera na otwartej stronie rozszerzeń.\n" +
+                "2. Kliknij „Załaduj rozpakowane”.\n" +
+                "3. Wskaż otwarty folder MeetingOrgniazerGemini (ścieżka jest też w schowku).\n\n" +
+                "Po instalacji pozostaw aplikację uruchomioną w zasobniku.",
+                "Meeting Orgniazer Gemini",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Przygotowanie rozszerzenia {Browser}", browser);
+            BrowserExtensionStatus = "Nie udało się przygotować rozszerzenia.";
+            MessageBox.Show(ex.Message, "Meeting Orgniazer Gemini", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 

@@ -2,7 +2,7 @@
 ; Nie usuwa nagrań użytkownika przy deinstalacji.
 
 #define MyAppName "Meeting Audio Recorder"
-#define MyAppVersion "1.1.1"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "MeetingAudioRecorder"
 #define MyAppExeName "MeetingAudioRecorder.exe"
 
@@ -43,6 +43,8 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "MeetingAudioRecorder"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: autostart
+Root: HKCU; Subkey: "Software\Google\Chrome\NativeMessagingHosts\com.meetingorganizer.gemini"; ValueType: string; ValueName: ""; ValueData: "{app}\meeting-organizer-native-host.json"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Microsoft\Edge\NativeMessagingHosts\com.meetingorganizer.gemini"; ValueType: string; ValueName: ""; ValueData: "{app}\meeting-organizer-native-host.json"; Flags: uninsdeletekey
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Uruchom {#MyAppName}"; Flags: nowait postinstall skipifsilent
@@ -52,6 +54,32 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Uruchom {#MyAppName}"; Flags: n
 ; NIE usuwaj folderu nagrań użytkownika (Dokumenty\Nagrania spotkań)
 
 [Code]
+procedure InstallNativeMessagingManifest();
+var
+  ManifestPath: String;
+  HostPath: String;
+  FileContents: AnsiString;
+  Contents: String;
+begin
+  ManifestPath := ExpandConstant('{app}\meeting-organizer-native-host.json');
+  HostPath := ExpandConstant('{app}\MeetingAudioRecorder.BrowserBridge.exe');
+  StringChangeEx(HostPath, '\', '\\', True);
+
+  if not LoadStringFromFile(ManifestPath, FileContents) then
+    RaiseException('Nie można odczytać manifestu Native Messaging.');
+
+  Contents := String(FileContents);
+  StringChangeEx(Contents, '__NATIVE_HOST_PATH__', HostPath, True);
+  if not SaveStringToFile(ManifestPath, AnsiString(Contents), False) then
+    RaiseException('Nie można zapisać manifestu Native Messaging.');
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+    InstallNativeMessagingManifest();
+end;
+
 function InitializeUninstall(): Boolean;
 begin
   Result := True;

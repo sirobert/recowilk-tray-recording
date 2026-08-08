@@ -16,6 +16,7 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
     private readonly IGoogleAuthorizationService _authorizationService;
     private readonly IGoogleCalendarClient _calendarClient;
     private readonly IGoogleMeetClient _meetClient;
+    private readonly IActiveMeetLinkProvider _activeMeetLinkProvider;
     private readonly IMeetingAudioDeviceResolver _audioDeviceResolver;
     private readonly IRecordingCoordinator _recordingCoordinator;
     private readonly INotificationService _notificationService;
@@ -39,6 +40,7 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
         IGoogleAuthorizationService authorizationService,
         IGoogleCalendarClient calendarClient,
         IGoogleMeetClient meetClient,
+        IActiveMeetLinkProvider activeMeetLinkProvider,
         IMeetingAudioDeviceResolver audioDeviceResolver,
         IRecordingCoordinator recordingCoordinator,
         INotificationService notificationService,
@@ -48,6 +50,7 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
             authorizationService,
             calendarClient,
             meetClient,
+            activeMeetLinkProvider,
             audioDeviceResolver,
             recordingCoordinator,
             notificationService,
@@ -61,6 +64,7 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
         IGoogleAuthorizationService authorizationService,
         IGoogleCalendarClient calendarClient,
         IGoogleMeetClient meetClient,
+        IActiveMeetLinkProvider activeMeetLinkProvider,
         IMeetingAudioDeviceResolver audioDeviceResolver,
         IRecordingCoordinator recordingCoordinator,
         INotificationService notificationService,
@@ -71,12 +75,14 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
         _authorizationService = authorizationService;
         _calendarClient = calendarClient;
         _meetClient = meetClient;
+        _activeMeetLinkProvider = activeMeetLinkProvider;
         _audioDeviceResolver = audioDeviceResolver;
         _recordingCoordinator = recordingCoordinator;
         _notificationService = notificationService;
         _logger = logger;
         _timeProvider = timeProvider;
         _startedTimestamp = timeProvider.GetTimestamp();
+        _activeMeetLinkProvider.ActiveLinksChanged += OnActiveMeetLinksChanged;
     }
 
     public event EventHandler<MeetingAutomationStatus>? StatusChanged;
@@ -151,6 +157,7 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
 
     public async ValueTask DisposeAsync()
     {
+        _activeMeetLinkProvider.ActiveLinksChanged -= OnActiveMeetLinksChanged;
         await StopAsync().ConfigureAwait(false);
         _checkGate.Dispose();
     }
@@ -277,13 +284,34 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
         }
 
         var now = _timeProvider.GetUtcNow();
-        var meetings = await _calendarClient.ListMeetingCandidatesAsync(
+        var activeLinks = await _activeMeetLinkProvider.GetActiveLinksAsync(cancellationToken)
+            .ConfigureAwait(false);
+        IReadOnlyList<GoogleCalendarMeeting> meetings;
+        try
+        {
+            meetings = await _calendarClient.ListMeetingCandidatesAsync(
+                now - CalendarPastWindow,
+                now + CalendarLookAhead,
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (activeLinks.Count > 0 && IsTransientApiFailure(ex, cancellationToken))
+        {
+            _logger.LogWarning(ex, "Calendar niedostępny; sprawdzanie aktywnego linku Meet jest kontynuowane");
+            meetings = [];
+        }
+
+        var browserMeetings = activeLinks.Select(link => new GoogleCalendarMeeting(
+            $"browser:{link.MeetingCode}",
+            $"Google Meet {link.MeetingCode}",
             now - CalendarPastWindow,
-            now + CalendarLookAhead,
-            cancellationToken).ConfigureAwait(false);
+            now.AddHours(24),
+            $"https://meet.google.com/{link.MeetingCode}",
+            link.MeetingCode));
         var candidates = meetings
             .Where(meeting => meeting.StartsAt <= now + CalendarLookAhead
                               && meeting.EndsAt >= now - CalendarPastWindow)
+            .Concat(browserMeetings)
+            .DistinctBy(meeting => meeting.MeetingCode, StringComparer.OrdinalIgnoreCase)
             .OrderBy(meeting => meeting.StartsAt)
             .Take(10)
             .ToArray();
@@ -485,5 +513,20 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
         var microphone = selection.MicrophoneFriendlyName ?? "mikrofon z ustawień";
         var output = selection.OutputFriendlyName ?? "wyjście z ustawień";
         return $"Wykryto {selection.BrowserProcessName}: mikrofon „{microphone}”, wyjście „{output}”.";
+    }
+
+    private void OnActiveMeetLinksChanged(object? sender, EventArgs e)
+        => _ = CheckAfterBrowserSignalAsync();
+
+    private async Task CheckAfterBrowserSignalAsync()
+    {
+        try
+        {
+            await CheckNowAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Nie udało się sprawdzić sygnału rozszerzenia Meet");
+        }
     }
 }

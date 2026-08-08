@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Meeting Orgniazer Gemini",
+  "description": "Przekazuje lokalnej aplikacji Meeting Audio Recorder kod aktywnego spotkania Google Meet.",
+  "version": "1.0.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA8QjR1SKv1KcLIl32p693ijOjtiVwA5RmtzrpWYNOQY4ISNpnHvyAZTUGUfsF6OCe/YUjuRQYSwRbfolA69Sfm/iP2h50bhVL2y2hS0eLMh+06fX3G3kdkhUcNTwpWIugLn+c3nlnzcxLO/AYD2eKIICDGuvcpFXxIVbzK6VY1C7KVvI5TGDF+ubudCZAKiiMRF6uSZZ/xjJoiJw5M6RtJvJCBsQYmWfZfVAMkZwLgIFiP/2F+AwbzGx5k2UGzbgyu1El1kLlfWxZDPbn+p6tGIjOgqQKFT1R/bdrc56KvCZ+gDZrn1sI6lGOAUkD6LeTt7bfuktjx3LeTyC7E1XY8QIDAQAB",
+  "permissions": [
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "https://meet.google.com/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://meet.google.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_title": "Meeting Orgniazer Gemini"
+  }
+}

@@ -14,6 +14,9 @@ public static class AppPaths
     public static string GoogleTokenPath => Path.Combine(LocalAppData, "google-token.dat");
     public static string LogsDirectory => Path.Combine(LocalAppData, "Logs");
     public static string TempDirectory => Path.Combine(LocalAppData, "Temp");
+    public static string BrowserDirectory => Path.Combine(LocalAppData, "Browser");
+    public static string BrowserStatePath => Path.Combine(BrowserDirectory, "active-meet.json");
+    public static string BrowserExtensionDirectory => Path.Combine(BrowserDirectory, "MeetingOrgniazerGemini");
     public static string MutexName => @"Local\MeetingAudioRecorder_SingleInstance_v1";
 
     public static void EnsureDirectories()

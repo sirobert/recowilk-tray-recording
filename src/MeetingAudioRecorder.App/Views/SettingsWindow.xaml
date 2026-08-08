@@ -156,14 +156,29 @@
                                     Command="{Binding RefreshGoogleConnectionCommand}"
                                     Padding="12,6"/>
                         </WrapPanel>
-                        <CheckBox Content="Automatycznie nagrywaj, gdy dołączę do spotkania z kalendarza"
+                        <CheckBox Content="Automatycznie nagrywaj, gdy dołączę do Google Meet"
                                   IsChecked="{Binding GoogleMeetAutomationEnabled}"
                                   IsEnabled="{Binding IsGoogleConnected}"
                                   Margin="0,0,0,6"/>
                         <TextBlock Text="{Binding GoogleAutomationStatus}"
                                    Style="{StaticResource Hint}"/>
                         <TextBlock Style="{StaticResource Hint}"
-                                   Text="Wymagany jest plik OAuth typu Desktop app z Google Cloud. Kalendarz tylko wskazuje spotkanie; nagrywanie rozpoczyna się dopiero po wykryciu Twojej obecności w Google Meet."/>
+                                   Text="Wymagany jest plik OAuth typu Desktop app z Google Cloud. Kandydat pochodzi z Calendar lub rozszerzenia; nagrywanie rozpoczyna się dopiero po wykryciu Twojej obecności w Google Meet."/>
+                        <Separator Margin="0,10,0,10"/>
+                        <TextBlock Text="Meeting Orgniazer Gemini"
+                                   FontWeight="SemiBold" Margin="0,0,0,6"/>
+                        <WrapPanel Margin="0,0,0,6">
+                            <Button Content="Pobierz / zainstaluj dla Chrome"
+                                    Command="{Binding PrepareChromeExtensionCommand}"
+                                    Padding="12,6" Margin="0,0,8,0"/>
+                            <Button Content="Pobierz / zainstaluj dla Edge"
+                                    Command="{Binding PrepareEdgeExtensionCommand}"
+                                    Padding="12,6"/>
+                        </WrapPanel>
+                        <TextBlock Text="{Binding BrowserExtensionStatus}"
+                                   Style="{StaticResource Hint}"/>
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="Rozszerzenie wykrywa wyłącznie otwarte linki meet.google.com i przekazuje kod spotkania lokalnie. Dzięki temu automatyka działa także bez wydarzenia Calendar."/>
                     </StackPanel>
                 </GroupBox>
 

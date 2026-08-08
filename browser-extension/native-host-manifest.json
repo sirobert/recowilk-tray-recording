@@ -1,0 +1,9 @@
+{
+  "name": "com.meetingorganizer.gemini",
+  "description": "Lokalny most Meeting Orgniazer Gemini do Meeting Audio Recorder",
+  "path": "__NATIVE_HOST_PATH__",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://eljjpmlmlnjjpjlnhiilfclkhoecdlij/"
+  ]
+}

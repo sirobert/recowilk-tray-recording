@@ -59,6 +59,18 @@ Zapisz w raporcie: wersję Windows i aplikacji, typ konta Google, identyfikatory
 7. Uruchom ręczne nagrywanie podczas aktywnego Meet. Oczekiwane: ręczny start nadal używa urządzeń A i nie wykonuje automatycznej detekcji.
 8. Podczas aktywnego nagrania zmień urządzenia w Meet. Oczekiwane: bieżąca sesja zachowuje endpointy zapisane w swoim snapshotcie; zmiana nie przełącza capture w locie.
 
+### 5B. R-014 — Meeting Orgniazer Gemini i link bez Calendar
+
+1. Zainstaluj aplikację 1.2.0. W Ustawieniach kliknij instalację rozszerzenia dla Chrome; potwierdź, że otwierają się `chrome://extensions` i folder pakietu, a ścieżka jest w schowku.
+2. Włącz Tryb dewelopera, wybierz **Załaduj rozpakowane** i wskaż folder `MeetingOrgniazerGemini`. Oczekiwane ID: `eljjpmlmlnjjpjlnhiilfclkhoecdlij`; brak błędu Native Messaging.
+3. Połącz w aplikacji konto Google, włącz automatykę i upewnij się, że w Calendar nie ma testowego spotkania.
+4. Otwórz otrzymany link `https://meet.google.com/tcu-ysxp-tvw?...`, ale nie klikaj **Dołącz teraz**. Oczekiwane: brak nagrywania.
+5. Dołącz tym samym kontem, które połączono z aplikacją. Oczekiwane: rozszerzenie zapisuje świeży kod lokalnie, Meet API potwierdza obecność i jedna sesja rozpoczyna się bez oczekiwania na 30-sekundowy polling Calendar.
+6. Opuść spotkanie, pozostawiając kartę otwartą. Oczekiwane: zatrzymanie następuje dopiero po potwierdzonym braku aktywnej sesji przez Meet API.
+7. Zamknij kartę lub wyłącz rozszerzenie. Oczekiwane: stan linku wygasa najpóźniej po 90 sekundach; samo zniknięcie rozszerzenia nie zatrzymuje trwającego nagrania przy błędzie API.
+8. Powtórz dla Edge. Następnie otwórz dwa różne linki Meet i dołącz tylko do jednego; oczekiwane: aplikacja sprawdza oba kody, ale uruchamia jedną sesję dla konferencji z aktywnym użytkownikiem.
+9. Przejrzyj `%LOCALAPPDATA%\MeetingAudioRecorder\Browser\active-meet.json`. Oczekiwane: wyłącznie wersja, czas, kod spotkania i nazwa przeglądarki; brak URL query, tokenów, e-maili, tytułów kart i list uczestników.
+
 ## 6. Microsoft Teams
 
 1. Jak wyżej dla Teams (szczególnie profil BT Hands-Free).
@@ -221,3 +233,5 @@ Zapisz w raporcie: wersję Windows i aplikacji, typ konta Google, identyfikatory
 | 22 | Brak sieci/API nie zatrzymuje aktywnego nagrania | |
 | 23 | Automatyczny start wybiera endpointy aktywnej przeglądarki | |
 | 24 | Brak detekcji używa zapisanych urządzeń bez zmiany ustawień | |
+| 25 | Link Meet bez Calendar uruchamia nagranie dopiero po faktycznym dołączeniu | |
+| 26 | Rozszerzenie komunikuje się wyłącznie przez dozwolony lokalny Native Host | |

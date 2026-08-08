@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>MeetingAudioRecorder.BrowserBridge</AssemblyName>
+    <RootNamespace>MeetingAudioRecorder.BrowserBridge</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MeetingAudioRecorder.Core\MeetingAudioRecorder.Core.csproj" />
+  </ItemGroup>
+
+</Project>

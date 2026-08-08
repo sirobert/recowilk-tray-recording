@@ -156,6 +156,21 @@ Status: implementacja i testy deterministyczne zakończone w aplikacji 1.1.1; te
 
 Akceptacja: automatyczna sesja używa endpointów aktywnej przeglądarki, zapisuje je w snapshotcie i pokazuje w powiadomieniu; częściowy lub całkowity brak detekcji bezpiecznie korzysta z zapisanych ustawień.
 
+#### R-014: linki Google Meet bez wydarzenia Calendar
+
+Status: implementacja aplikacji 1.2.0, rozszerzenia Meeting Orgniazer Gemini i testy deterministyczne zakończone; instalacja rozszerzenia oraz prawdziwy link Meet oczekują na test manualny 5B.
+
+- Dostarcz rozszerzenie Manifest V3 dla Chrome/Edge działające wyłącznie na `meet.google.com`.
+- Przekazuj przez Native Messaging jedynie kod spotkania i nazwę przeglądarki; token OAuth pozostaje wyłącznie w aplikacji.
+- Rejestruj per-user host `com.meetingorganizer.gemini` z allowlistą stałego ID rozszerzenia.
+- Zapisuj stan atomowo w profilu użytkownika i odrzucaj dane starsze niż 90 sekund, niepoprawne kody oraz nadmiarowe wpisy.
+- Traktuj link jako kandydata; faktyczny start nadal wymaga potwierdzenia obecności bieżącego konta przez Meet API.
+- Sygnał rozszerzenia ma wybudzać sprawdzenie bez zwiększania częstotliwości odpytywania Calendar.
+- Brak, zamknięcie lub awaria rozszerzenia nie może samodzielnie zatrzymać trwającego nagrania.
+- Udostępnij pakiet z Ustawień; jawnie opisz wymagany ręczny krok `Załaduj rozpakowane`, dopóki rozszerzenie nie trafi do sklepów.
+
+Akceptacja: otrzymany link Meet bez wpisu Calendar rozpoczyna nagrywanie dopiero po faktycznym dołączeniu połączonego konta, zamknięcie karty bez wiarygodnej odpowiedzi API nie zatrzymuje materiału, a rozszerzenie nie uzyskuje dostępu do tokenów ani historii przeglądania.
+
 ## Strategia commitów
 
 1. `test: reproduce loopback timeline duplication`

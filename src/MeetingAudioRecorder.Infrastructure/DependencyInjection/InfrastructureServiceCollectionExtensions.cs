@@ -18,6 +18,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddAppLogging();
         services.AddSingleton<ISettingsService, JsonSettingsService>();
         services.AddSingleton<IStartupService, WindowsStartupService>();
+        services.AddSingleton<IBrowserExtensionInstaller, BrowserExtensionInstaller>();
         services.AddSingleton<ISingleInstanceService, NamedMutexSingleInstanceService>();
         services.AddSingleton<IRecordingRecoveryService, RecordingRecoveryService>();
         services.AddSingleton<IRecordingSessionManifestStore, JsonRecordingSessionManifestStore>();
@@ -30,6 +31,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddHttpClient<IGoogleAccessTokenProvider, GoogleAccessTokenProvider>();
         services.AddHttpClient<IGoogleCalendarClient, GoogleCalendarClient>();
         services.AddHttpClient<IGoogleMeetClient, GoogleMeetClient>();
+        services.AddSingleton<IActiveMeetLinkProvider, FileActiveMeetLinkProvider>();
         return services;
     }
 }

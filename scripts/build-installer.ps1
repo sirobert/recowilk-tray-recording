@@ -18,4 +18,5 @@ if (-not $iscc) {
 }
 
 & $iscc (Join-Path $PSScriptRoot "installer.iss")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 Write-Host "Instalator w folderze publish\installer\" -ForegroundColor Green

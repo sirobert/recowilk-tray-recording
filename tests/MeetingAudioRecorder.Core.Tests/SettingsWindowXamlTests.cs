@@ -43,4 +43,20 @@ public class SettingsWindowXamlTests
         Assert.Contains("IsGoogleConnected", automationToggle.Attribute("IsEnabled")?.Value, StringComparison.Ordinal);
         Assert.Equal("Połącz z Google…", connectButton.Attribute("Content")?.Value);
     }
+
+    [Fact]
+    public void GoogleMeetAutomation_OffersBundledChromeAndEdgeExtension()
+    {
+        var xamlPath = Path.Combine(AppContext.BaseDirectory, "UiContracts", "SettingsWindow.xaml");
+        var document = XDocument.Load(xamlPath);
+        var commands = document
+            .Descendants()
+            .Where(element => element.Name.LocalName == "Button")
+            .Select(element => element.Attribute("Command")?.Value)
+            .Where(value => value is not null)
+            .ToArray();
+
+        Assert.Contains(commands, value => value!.Contains("PrepareChromeExtensionCommand", StringComparison.Ordinal));
+        Assert.Contains(commands, value => value!.Contains("PrepareEdgeExtensionCommand", StringComparison.Ordinal));
+    }
 }

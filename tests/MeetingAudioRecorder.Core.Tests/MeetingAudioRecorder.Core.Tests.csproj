@@ -31,4 +31,16 @@
           CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\browser-extension\manifest.json"
+          Link="BrowserExtension\manifest.json"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\browser-extension\native-host-manifest.json"
+          Link="BrowserExtension\native-host-manifest.json"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\scripts\installer.iss"
+          Link="Installer\installer.iss"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

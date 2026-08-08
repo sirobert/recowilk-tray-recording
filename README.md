@@ -24,7 +24,7 @@ Przeznaczona do nagrywania spotkań (Google Meet, Microsoft Teams, Zoom itd.) z 
 - Pojedyncza instancja (named Mutex)
 - Konfiguracja JSON w profilu użytkownika
 - Logi z rotacją (bez treści audio)
-- Opcjonalna automatyka Google Meet: Calendar wskazuje wydarzenie, a obecność użytkownika steruje startem i stopem
+- Opcjonalna automatyka Google Meet: Calendar lub rozszerzenie wskazuje spotkanie, a obecność użytkownika steruje startem i stopem
 - Audio, nagrania i logi pozostają lokalne; brak telemetrii i wysyłania nagrań do chmury
 
 ---
@@ -154,9 +154,20 @@ dotnet test MeetingAudioRecorder.slnx -c Release
 3. Pobierz plik `client_secret*.json`; nie dodawaj go do Git ani nie udostępniaj publicznie.
 4. W aplikacji otwórz **Ustawienia → Google Meet → Połącz z Google…** i wybierz pobrany JSON.
 5. Zaloguj się w systemowej przeglądarce oraz zaakceptuj dostęp tylko do odczytu Calendar/Meet.
-6. Zaznacz **Automatycznie nagrywaj, gdy dołączę do spotkania z kalendarza** i zapisz ustawienia.
+6. Zaznacz **Automatycznie nagrywaj, gdy dołączę do Google Meet** i zapisz ustawienia.
 
-Samo rozpoczęcie wydarzenia nie uruchamia nagrania. Aplikacja zaczyna nagrywać dopiero po wykryciu połączonego konta w aktywnej konferencji i zatrzymuje własną sesję po trzech potwierdzeniach wyjścia w czasie co najmniej 15 sekund. Do Meet trzeba wejść tym samym kontem, które połączono z rejestratorem.
+Samo rozpoczęcie wydarzenia ani otwarcie strony Meet nie uruchamia nagrania. Aplikacja zaczyna nagrywać dopiero po wykryciu połączonego konta w aktywnej konferencji i zatrzymuje własną sesję po trzech potwierdzeniach wyjścia w czasie co najmniej 15 sekund. Do Meet trzeba wejść tym samym kontem, które połączono z rejestratorem.
+
+#### Meeting Orgniazer Gemini — spotkania bez Calendar
+
+Rozszerzenie jest dołączone do aplikacji 1.2.0 i obsługuje linki Meet przesłane przez e-mail, komunikator lub czat:
+
+1. Otwórz **Ustawienia → Google Meet**.
+2. Kliknij **Pobierz / zainstaluj dla Chrome** albo **dla Edge**.
+3. Aplikacja przygotuje pakiet, skopiuje jego ścieżkę do schowka oraz otworzy folder i stronę rozszerzeń.
+4. Włącz **Tryb dewelopera**, wybierz **Załaduj rozpakowane** i wskaż otwarty folder `MeetingOrgniazerGemini`.
+
+Chrome i Edge nie pozwalają zwykłej aplikacji desktopowej instalować rozszerzenia po cichu. Po publikacji w Chrome Web Store/Edge Add-ons ten etap będzie można zastąpić pojedynczym przyciskiem prowadzącym do sklepu. Rozszerzenie ma stałe ID `eljjpmlmlnjjpjlnhiilfclkhoecdlij` i łączy się wyłącznie z lokalnym hostem `com.meetingorganizer.gemini`.
 
 Przy automatycznym starcie aplikacja przegląda aktywne sesje Windows Core Audio procesów Chrome, Edge, Firefox, Brave, Opera i Vivaldi. Aktywna sesja mikrofonowa wskazuje rodzinę przeglądarki, a wyjście jest wybierane z aktywnych sesji tej samej przeglądarki. Jeśli wykrycie jednej ze stron się nie powiedzie, używane jest odpowiednie urządzenie zapisane w ustawieniach. Wykrycie nie nadpisuje ustawień i nie zmienia urządzeń w trakcie nagrania. Powiadomienie startowe pokazuje zastosowane urządzenia.
 
@@ -216,7 +227,7 @@ Przy uszkodzonym JSON: kopia `.corrupt.*.bak`, domyślne wartości, aplikacja dz
 | Ikona nie widać | Tray → „Pokaż ukryte ikony” |
 | Logi | `%LOCALAPPDATA%\MeetingAudioRecorder\Logs` |
 | Temp / odzyskiwanie | `%LOCALAPPDATA%\MeetingAudioRecorder\Temp` |
-| Automatyka Google nie startuje | To samo konto w aplikacji i Meet; wydarzenie ma link Meet; zaproszenie nie jest odrzucone |
+| Automatyka Google nie startuje | To samo konto w aplikacji i Meet; dla spotkania bez Calendar sprawdź, czy Meeting Orgniazer Gemini jest włączone |
 | Google prosi o ponowne logowanie | Połącz konto ponownie; dostęp mógł zostać cofnięty lub token wygasł |
 
 ---
@@ -229,6 +240,7 @@ Przy uszkodzonym JSON: kopia `.corrupt.*.bak`, domyślne wartości, aplikacja dz
 - Nagrywanie jest **zawsze widoczne** na ikonie tray.
 - Bez włączonej automatyki aplikacja nie łączy się z Google.
 - Po włączeniu automatyki pobierane są minimalne metadane Calendar/Meet potrzebne do wykrycia wydarzenia i obecności bieżącego konta. Listy uczestników nie są zapisywane.
+- Meeting Orgniazer Gemini działa tylko na `meet.google.com`; przekazuje lokalnie kod spotkania i nazwę przeglądarki, bez tokenów, tytułów kart i historii. Stan w `%LOCALAPPDATA%\MeetingAudioRecorder\Browser` wygasa po 90 sekundach.
 - Token OAuth jest szyfrowany przez Windows DPAPI dla bieżącego użytkownika.
 - Dane lokalne: MP3, ustawienia, zaszyfrowany token i logi w profilu użytkownika.
 
