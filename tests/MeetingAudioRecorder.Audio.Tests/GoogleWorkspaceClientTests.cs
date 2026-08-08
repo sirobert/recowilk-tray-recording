@@ -124,14 +124,14 @@ public sealed class GoogleWorkspaceClientTests
             {
                 return Json("""
                     {
-                      "participants": [{ "signedInUser": { "user": "users/someone-else" } }],
+                      "participants": [{ "signedinUser": { "user": "users/someone-else" } }],
                       "nextPageToken": "page-2"
                     }
                     """);
             }
 
             return Json("""
-                { "participants": [{ "signedInUser": { "user": "users/me-123" } }] }
+                { "participants": [{ "signedinUser": { "user": "users/me-123" } }] }
                 """);
         });
         var client = new GoogleMeetClient(new HttpClient(handler), new FixedTokenProvider());
@@ -145,7 +145,10 @@ public sealed class GoogleWorkspaceClientTests
             "latest_end_time IS NULL",
             Uri.UnescapeDataString(handler.Requests[1].RequestUri!.Query),
             StringComparison.Ordinal);
-        Assert.Contains("fields=", handler.Requests[1].RequestUri!.Query, StringComparison.Ordinal);
+        Assert.Contains(
+            "fields=participants%28signedinUser%2Fuser%29%2CnextPageToken",
+            handler.Requests[1].RequestUri!.Query,
+            StringComparison.Ordinal);
     }
 
     [Fact]

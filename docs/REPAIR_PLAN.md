@@ -158,7 +158,7 @@ Akceptacja: automatyczna sesja używa endpointów aktywnej przeglądarki, zapisu
 
 #### R-014: linki Google Meet bez wydarzenia Calendar
 
-Status: implementacja aplikacji 1.2.1, rozszerzenia Meeting Orgniazer Gemini i testy deterministyczne zakończone; naprawiono jednoznaczne tworzenie klientów Google OAuth przez DI; instalacja rozszerzenia oraz prawdziwy link Meet oczekują na test manualny 5B.
+Status: implementacja aplikacji 1.2.2, rozszerzenia Meeting Orgniazer Gemini i testy deterministyczne zakończone; naprawiono jednoznaczne tworzenie klientów Google OAuth przez DI oraz zgodność maski `signedinUser` z Meet API; ponowny test prawdziwego linku Meet oczekuje na wykonanie scenariusza 5B.
 
 - Dostarcz rozszerzenie Manifest V3 dla Chrome/Edge działające wyłącznie na `meet.google.com`.
 - Przekazuj przez Native Messaging jedynie kod spotkania i nazwę przeglądarki; token OAuth pozostaje wyłącznie w aplikacji.

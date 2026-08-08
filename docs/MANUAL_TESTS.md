@@ -61,7 +61,7 @@ Zapisz w raporcie: wersję Windows i aplikacji, typ konta Google, identyfikatory
 
 ### 5B. R-014 — Meeting Orgniazer Gemini i link bez Calendar
 
-1. Zainstaluj aplikację 1.2.1. W Ustawieniach kliknij instalację rozszerzenia dla Chrome; potwierdź, że otwierają się `chrome://extensions` i folder pakietu, a ścieżka jest w schowku.
+1. Zainstaluj aplikację 1.2.2. W Ustawieniach kliknij instalację rozszerzenia dla Chrome; potwierdź, że otwierają się `chrome://extensions` i folder pakietu, a ścieżka jest w schowku.
 2. Włącz Tryb dewelopera, wybierz **Załaduj rozpakowane** i wskaż folder `MeetingOrgniazerGemini`. Oczekiwane ID: `eljjpmlmlnjjpjlnhiilfclkhoecdlij`; brak błędu Native Messaging.
 3. Połącz w aplikacji konto Google, włącz automatykę i upewnij się, że w Calendar nie ma testowego spotkania.
 4. Otwórz otrzymany link `https://meet.google.com/tcu-ysxp-tvw?...`, ale nie klikaj **Dołącz teraz**. Oczekiwane: brak nagrywania.

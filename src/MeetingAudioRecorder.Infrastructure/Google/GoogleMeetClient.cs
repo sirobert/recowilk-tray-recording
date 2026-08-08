@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using MeetingAudioRecorder.Core.Interfaces;
 using MeetingAudioRecorder.Core.Models;
 
@@ -87,7 +88,7 @@ public sealed class GoogleMeetClient : IGoogleMeetClient
             {
                 new("filter", "latest_end_time IS NULL"),
                 new("pageSize", "250"),
-                new("fields", "participants(signedInUser/user),nextPageToken")
+                new("fields", "participants(signedinUser/user),nextPageToken")
             };
             if (pageToken is not null)
                 parameters.Add(new("pageToken", pageToken));
@@ -177,6 +178,7 @@ public sealed class GoogleMeetClient : IGoogleMeetClient
 
     private sealed class Participant
     {
+        [JsonPropertyName("signedinUser")]
         public SignedInUser? SignedInUser { get; init; }
     }
 

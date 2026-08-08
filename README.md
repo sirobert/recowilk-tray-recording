@@ -164,7 +164,7 @@ Samo rozpoczęcie wydarzenia ani otwarcie strony Meet nie uruchamia nagrania. Ap
 
 #### Meeting Orgniazer Gemini — spotkania bez Calendar
 
-Rozszerzenie jest dołączone do aplikacji 1.2.1 i obsługuje linki Meet przesłane przez e-mail, komunikator lub czat:
+Rozszerzenie jest dołączone do aplikacji 1.2.2 i obsługuje linki Meet przesłane przez e-mail, komunikator lub czat:
 
 1. Otwórz **Ustawienia → Google Meet**.
 2. Kliknij **Pobierz / zainstaluj dla Chrome** albo **dla Edge**.
