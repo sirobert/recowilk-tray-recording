@@ -1,5 +1,6 @@
 using MeetingAudioRecorder.Core.Interfaces;
 using MeetingAudioRecorder.Core.Services;
+using MeetingAudioRecorder.Infrastructure.Google;
 using MeetingAudioRecorder.Infrastructure.IO;
 using MeetingAudioRecorder.Infrastructure.Logging;
 using MeetingAudioRecorder.Infrastructure.Recovery;
@@ -23,6 +24,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IWavFileRepairService, WavFileRepairService>();
         services.AddSingleton<IFileNameService, FileNameService>();
         services.AddSingleton<IDiskSpaceService, DiskSpaceService>();
+        services.AddSingleton<IGoogleTokenStore, ProtectedFileGoogleTokenStore>();
         return services;
     }
 }

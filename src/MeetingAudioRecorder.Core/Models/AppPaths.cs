@@ -11,6 +11,7 @@ public static class AppPaths
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppFolderName);
 
     public static string SettingsPath => Path.Combine(LocalAppData, "settings.json");
+    public static string GoogleTokenPath => Path.Combine(LocalAppData, "google-token.dat");
     public static string LogsDirectory => Path.Combine(LocalAppData, "Logs");
     public static string TempDirectory => Path.Combine(LocalAppData, "Temp");
     public static string MutexName => @"Local\MeetingAudioRecorder_SingleInstance_v1";

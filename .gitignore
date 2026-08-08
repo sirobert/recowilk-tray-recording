@@ -22,6 +22,9 @@ TestResults/
 *.mp3
 *.partial
 settings.json
+google-token.dat
+client_secret*.json
+google-oauth*.json
 
 ## Local AI/runtime state
 .codex/
