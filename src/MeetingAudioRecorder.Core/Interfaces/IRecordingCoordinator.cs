@@ -16,6 +16,9 @@ public interface IRecordingCoordinator : IAsyncDisposable
     bool CanStop { get; }
 
     Task StartRecordingAsync(CancellationToken cancellationToken = default);
+    Task StartRecordingWithDevicesAsync(
+        RecordingDeviceSelection deviceSelection,
+        CancellationToken cancellationToken = default);
     Task<RecordingResult> StopRecordingAsync(CancellationToken cancellationToken = default);
     Task<RecordingResult> RecoverRecordingAsync(RecoverableRecording recoverable, CancellationToken cancellationToken = default);
     Task ToggleRecordingAsync(CancellationToken cancellationToken = default);

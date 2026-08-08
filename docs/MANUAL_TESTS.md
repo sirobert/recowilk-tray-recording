@@ -48,6 +48,17 @@ Zapisz w raporcie: wersję Windows i aplikacji, typ konta Google, identyfikatory
 9. Powtórz, wchodząc innym kontem lub anonimowo. Oczekiwane: brak automatycznego startu.
 10. Cofnij zgodę aplikacji na koncie Google podczas nagrania. Oczekiwane: komunikat o wymaganym logowaniu, ale brak automatycznego stopu i brak utraty materiału.
 
+### 5A. R-013 — automatyczny wybór urządzeń przeglądarki
+
+1. W ustawieniach aplikacji zapisz mikrofon A i wyjście A. W Google Meet w Chrome wybierz inne urządzenia: mikrofon B i wyjście B.
+2. Dołącz do wydarzenia objętego automatyką, upewnij się, że mikrofon Meet jest aktywny i odtwórz głos drugiej osoby.
+3. Oczekiwane: powiadomienie startowe wskazuje Chrome oraz urządzenia B; manifest sesji zawiera endpointy B, a zapisane ustawienia nadal zawierają A.
+4. Zatrzymaj spotkanie i odsłuchaj MP3. Oczekiwane: słychać mikrofon B i dźwięk odtwarzany na wyjściu B.
+5. Powtórz dla Edge lub Firefox. Oczekiwane: wybór endpointów aktywnej przeglądarki, bez przejęcia aktywnej sesji innej obsługiwanej przeglądarki, jeżeli sesja mikrofonowa jednoznacznie wskazuje Meet.
+6. Zablokuj dostęp przeglądarki do mikrofonu albo zamknij jej sesję audio przed startem. Oczekiwane: brak błędu startu; brakujący endpoint pochodzi z ustawień aplikacji.
+7. Uruchom ręczne nagrywanie podczas aktywnego Meet. Oczekiwane: ręczny start nadal używa urządzeń A i nie wykonuje automatycznej detekcji.
+8. Podczas aktywnego nagrania zmień urządzenia w Meet. Oczekiwane: bieżąca sesja zachowuje endpointy zapisane w swoim snapshotcie; zmiana nie przełącza capture w locie.
+
 ## 6. Microsoft Teams
 
 1. Jak wyżej dla Teams (szczególnie profil BT Hands-Free).
@@ -208,3 +219,5 @@ Zapisz w raporcie: wersję Windows i aplikacji, typ konta Google, identyfikatory
 | 20 | Obecność właściwego konta uruchamia jedną sesję | |
 | 21 | Potwierdzone wyjście zatrzymuje tylko sesję automatyczną | |
 | 22 | Brak sieci/API nie zatrzymuje aktywnego nagrania | |
+| 23 | Automatyczny start wybiera endpointy aktywnej przeglądarki | |
+| 24 | Brak detekcji używa zapisanych urządzeń bez zmiany ustawień | |

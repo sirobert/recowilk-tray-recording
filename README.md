@@ -158,6 +158,8 @@ dotnet test MeetingAudioRecorder.slnx -c Release
 
 Samo rozpoczęcie wydarzenia nie uruchamia nagrania. Aplikacja zaczyna nagrywać dopiero po wykryciu połączonego konta w aktywnej konferencji i zatrzymuje własną sesję po trzech potwierdzeniach wyjścia w czasie co najmniej 15 sekund. Do Meet trzeba wejść tym samym kontem, które połączono z rejestratorem.
 
+Przy automatycznym starcie aplikacja przegląda aktywne sesje Windows Core Audio procesów Chrome, Edge, Firefox, Brave, Opera i Vivaldi. Aktywna sesja mikrofonowa wskazuje rodzinę przeglądarki, a wyjście jest wybierane z aktywnych sesji tej samej przeglądarki. Jeśli wykrycie jednej ze stron się nie powiedzie, używane jest odpowiednie urządzenie zapisane w ustawieniach. Wykrycie nie nadpisuje ustawień i nie zmienia urządzeń w trakcie nagrania. Powiadomienie startowe pokazuje zastosowane urządzenia.
+
 ---
 
 ## Ustawienia
@@ -186,7 +188,7 @@ Przy uszkodzonym JSON: kopia `.corrupt.*.bak`, domyślne wartości, aplikacja dz
 
 ## WASAPI Loopback — jak to działa
 
-- Loopback przechwytuje **miks systemowy** wysyłany do wybranego urządzenia **Render** (słuchawki/głośniki).
+- Loopback przechwytuje **miks systemowy** wysyłany do wybranego urządzenia **Render** (słuchawki/głośniki). Przy automatycznym starcie Google Meet może to być endpoint wykryty z aktywnej sesji przeglądarki.
 - To **nie** jest nagranie „tylko z Chrome/Teams” — w pierwszej wersji to **cały dźwięk** na tym urządzeniu (powiadomienia, muzyka, inne aplikacje).
 - Architektura (`ILoopbackCaptureService`) pozwala w przyszłości dodać process loopback (Windows 10 2004+).
 - Gdy nic nie jest odtwarzane, system może nie wywoływać callbacka — aplikacja **uzupełnia ciszę**, aby ścieżka nie skracała się względem mikrofonu.

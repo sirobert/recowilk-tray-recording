@@ -16,6 +16,7 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
     private readonly IGoogleAuthorizationService _authorizationService;
     private readonly IGoogleCalendarClient _calendarClient;
     private readonly IGoogleMeetClient _meetClient;
+    private readonly IMeetingAudioDeviceResolver _audioDeviceResolver;
     private readonly IRecordingCoordinator _recordingCoordinator;
     private readonly INotificationService _notificationService;
     private readonly ILogger<MeetingAutomationService> _logger;
@@ -38,6 +39,7 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
         IGoogleAuthorizationService authorizationService,
         IGoogleCalendarClient calendarClient,
         IGoogleMeetClient meetClient,
+        IMeetingAudioDeviceResolver audioDeviceResolver,
         IRecordingCoordinator recordingCoordinator,
         INotificationService notificationService,
         ILogger<MeetingAutomationService> logger)
@@ -46,6 +48,7 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
             authorizationService,
             calendarClient,
             meetClient,
+            audioDeviceResolver,
             recordingCoordinator,
             notificationService,
             logger,
@@ -58,6 +61,7 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
         IGoogleAuthorizationService authorizationService,
         IGoogleCalendarClient calendarClient,
         IGoogleMeetClient meetClient,
+        IMeetingAudioDeviceResolver audioDeviceResolver,
         IRecordingCoordinator recordingCoordinator,
         INotificationService notificationService,
         ILogger<MeetingAutomationService> logger,
@@ -67,6 +71,7 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
         _authorizationService = authorizationService;
         _calendarClient = calendarClient;
         _meetClient = meetClient;
+        _audioDeviceResolver = audioDeviceResolver;
         _recordingCoordinator = recordingCoordinator;
         _notificationService = notificationService;
         _logger = logger;
@@ -319,14 +324,23 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
         {
             try
             {
-                await _recordingCoordinator.StartRecordingAsync(cancellationToken).ConfigureAwait(false);
+                var settings = _settingsService.Current;
+                var detected = _audioDeviceResolver.DetectActiveBrowserDevices(
+                    settings.MicrophoneDeviceId,
+                    settings.OutputDeviceId);
+                var selection = new RecordingDeviceSelection(
+                    detected.MicrophoneDeviceId,
+                    detected.OutputDeviceId,
+                    BuildDeviceSelectionReason(detected));
+                await _recordingCoordinator.StartRecordingWithDevicesAsync(selection, cancellationToken)
+                    .ConfigureAwait(false);
                 var session = _recordingCoordinator.CurrentSession
                               ?? throw new InvalidOperationException("Koordynator nie udostępnił rozpoczętej sesji.");
                 _controller.ConfirmAutomaticRecordingStarted(meeting.EventId, session.RecordingId);
                 _trackedMeeting = meeting;
                 _notificationService.ShowInfo(
                     "Google Meet",
-                    $"Automatycznie rozpoczęto nagrywanie: {meeting.Title}");
+                    $"Automatycznie rozpoczęto nagrywanie: {meeting.Title}. {BuildDeviceSummary(detected)}");
                 Publish(new MeetingAutomationStatus(
                     MeetingAutomationState.RecordingAutomatically,
                     "Nagrywanie uruchomione automatycznie.",
@@ -457,4 +471,19 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
            or InvalidDataException
            or System.Text.Json.JsonException
            || exception is OperationCanceledException && !cancellationToken.IsCancellationRequested;
+
+    private static string BuildDeviceSelectionReason(BrowserAudioDeviceSelection selection)
+        => selection.BrowserProcessName is null
+            ? "Zapisane urządzenia audio"
+            : $"Aktywne sesje audio procesu {selection.BrowserProcessName}";
+
+    private static string BuildDeviceSummary(BrowserAudioDeviceSelection selection)
+    {
+        if (!selection.HasDetectedDevice)
+            return "Użyto urządzeń zapisanych w ustawieniach.";
+
+        var microphone = selection.MicrophoneFriendlyName ?? "mikrofon z ustawień";
+        var output = selection.OutputFriendlyName ?? "wyjście z ustawień";
+        return $"Wykryto {selection.BrowserProcessName}: mikrofon „{microphone}”, wyjście „{output}”.";
+    }
 }

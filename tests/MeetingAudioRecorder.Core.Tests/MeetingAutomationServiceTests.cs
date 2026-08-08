@@ -32,9 +32,30 @@ public sealed class MeetingAutomationServiceTests
         await fixture.Service.CheckNowAsync();
         await fixture.Service.CheckNowAsync();
 
-        fixture.Coordinator.Verify(value => value.StartRecordingAsync(It.IsAny<CancellationToken>()), Times.Once);
+        fixture.Coordinator.Verify(value => value.StartRecordingWithDevicesAsync(
+            It.Is<RecordingDeviceSelection>(selection =>
+                selection.MicrophoneDeviceId == "browser-mic"
+                && selection.OutputDeviceId == "browser-out"),
+            It.IsAny<CancellationToken>()), Times.Once);
         fixture.Coordinator.Verify(value => value.StopRecordingAsync(It.IsAny<CancellationToken>()), Times.Never);
         Assert.Equal(MeetingAutomationState.RecordingAutomatically, fixture.Service.Status.State);
+    }
+
+    [Fact]
+    public async Task NoActiveBrowserSessions_StartsWithSavedDeviceFallback()
+    {
+        var fixture = new Fixture();
+        fixture.DeviceResolver.Setup(value => value.DetectActiveBrowserDevices(
+                It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(new BrowserAudioDeviceSelection(null, null, null));
+
+        await fixture.Service.CheckNowAsync();
+
+        fixture.Coordinator.Verify(value => value.StartRecordingWithDevicesAsync(
+            It.Is<RecordingDeviceSelection>(selection =>
+                selection.MicrophoneDeviceId == null
+                && selection.OutputDeviceId == null),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -112,11 +133,17 @@ public sealed class MeetingAutomationServiceTests
                         Presence);
                 });
 
+            DeviceResolver.Setup(value => value.DetectActiveBrowserDevices(
+                    It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(new BrowserAudioDeviceSelection("browser-mic", "browser-out", "chrome"));
+
             Coordinator.SetupGet(value => value.State).Returns(() => RecordingState);
             Coordinator.SetupGet(value => value.CanStart).Returns(() =>
                 RecordingState is AppRecordingState.Idle or AppRecordingState.Completed or AppRecordingState.Error);
             Coordinator.SetupGet(value => value.CurrentSession).Returns(() => _session);
-            Coordinator.Setup(value => value.StartRecordingAsync(It.IsAny<CancellationToken>()))
+            Coordinator.Setup(value => value.StartRecordingWithDevicesAsync(
+                    It.IsAny<RecordingDeviceSelection>(),
+                    It.IsAny<CancellationToken>()))
                 .Callback(() =>
                 {
                     RecordingState = AppRecordingState.Recording;
@@ -145,6 +172,7 @@ public sealed class MeetingAutomationServiceTests
                 Authorization.Object,
                 Calendar.Object,
                 Meet.Object,
+                DeviceResolver.Object,
                 Coordinator.Object,
                 Mock.Of<INotificationService>(),
                 NullLogger<MeetingAutomationService>.Instance,
@@ -154,6 +182,7 @@ public sealed class MeetingAutomationServiceTests
         public Mock<IGoogleAuthorizationService> Authorization { get; } = new();
         public Mock<IGoogleCalendarClient> Calendar { get; } = new();
         public Mock<IGoogleMeetClient> Meet { get; } = new();
+        public Mock<IMeetingAudioDeviceResolver> DeviceResolver { get; } = new();
         public Mock<IRecordingCoordinator> Coordinator { get; } = new();
         public FakeTimeProvider Time { get; } = new(Now);
         public MeetingAutomationService Service { get; }

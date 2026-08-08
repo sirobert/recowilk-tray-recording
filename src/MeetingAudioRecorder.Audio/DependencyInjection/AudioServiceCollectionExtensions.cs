@@ -13,6 +13,7 @@ public static class AudioServiceCollectionExtensions
     public static IServiceCollection AddAudioServices(this IServiceCollection services)
     {
         services.AddSingleton<IAudioDeviceService, AudioDeviceService>();
+        services.AddSingleton<IMeetingAudioDeviceResolver, BrowserMeetingAudioDeviceResolver>();
         services.AddSingleton<IAudioMixingService, AudioMixingService>();
         services.AddSingleton<IMp3EncodingService, Mp3EncodingService>();
         services.AddTransient<IMicrophoneCaptureService, WasapiMicrophoneCapture>();

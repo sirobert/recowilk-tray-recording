@@ -82,7 +82,20 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
             _logger.LogWarning("Toggle zablokowany — stan: {State}", State);
     }
 
-    public async Task StartRecordingAsync(CancellationToken cancellationToken = default)
+    public Task StartRecordingAsync(CancellationToken cancellationToken = default)
+        => StartRecordingCoreAsync(null, cancellationToken);
+
+    public Task StartRecordingWithDevicesAsync(
+        RecordingDeviceSelection deviceSelection,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(deviceSelection);
+        return StartRecordingCoreAsync(deviceSelection, cancellationToken);
+    }
+
+    private async Task StartRecordingCoreAsync(
+        RecordingDeviceSelection? deviceSelection,
+        CancellationToken cancellationToken)
     {
         if (!await _gate.WaitAsync(0, cancellationToken).ConfigureAwait(false))
         {
@@ -99,10 +112,10 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
             enteredStarting = true;
             RaiseState(prev, AppRecordingState.Starting);
 
-            var settings = _settingsService.Current;
+            var settings = RecordingDeviceSelectionResolver.Apply(_settingsService.Current, deviceSelection);
             _microphoneFormat = null;
             _loopbackFormat = null;
-            ValidateBeforeStart(settings);
+            ValidateBeforeStart(settings, persistResolvedDevices: deviceSelection is null);
             var settingsSnapshot = RecordingSettingsSnapshot.From(settings);
 
             var recordingId = Guid.NewGuid();
@@ -174,8 +187,11 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
 
             RaiseState(prev, AppRecordingState.Recording);
             _logger.LogInformation(
-                "Rozpoczęto nagranie {Id}. Mic={MicId}, Out={OutId}",
-                recordingId, settingsSnapshot.MicrophoneDeviceId, settingsSnapshot.OutputDeviceId);
+                "Rozpoczęto nagranie {Id}. Mic={MicId}, Out={OutId}, wybór={SelectionReason}",
+                recordingId,
+                settingsSnapshot.MicrophoneDeviceId,
+                settingsSnapshot.OutputDeviceId,
+                deviceSelection?.SelectionReason ?? "Ustawienia aplikacji");
         }
         catch (Exception ex)
         {
@@ -463,7 +479,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
         }
     }
 
-    private void ValidateBeforeStart(AppSettings settings)
+    private void ValidateBeforeStart(AppSettings settings, bool persistResolvedDevices)
     {
         var validation = SettingsValidator.Validate(settings);
         if (!validation.IsValid)
@@ -480,7 +496,8 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
         if (mic.Device is not null && settings.MicrophoneDeviceId != mic.Device.Id)
         {
             settings.MicrophoneDeviceId = mic.Device.Id;
-            _settingsService.Save(settings);
+            if (persistResolvedDevices)
+                _settingsService.Save(settings);
         }
 
         var output = _deviceService.ResolveDevice(settings.OutputDeviceId, AudioDeviceType.Render);
@@ -493,7 +510,8 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
         if (output.Device is not null && settings.OutputDeviceId != output.Device.Id)
         {
             settings.OutputDeviceId = output.Device.Id;
-            _settingsService.Save(settings);
+            if (persistResolvedDevices)
+                _settingsService.Save(settings);
         }
 
         Directory.CreateDirectory(settings.RecordingsDirectory);

@@ -143,6 +143,19 @@ Status: implementacja aplikacji 1.1.0, testy automatyczne i budowa instalatora z
 
 Akceptacja: samo rozpoczęcie wydarzenia nie uruchamia capture; wejście właściwego użytkownika uruchamia jedną sesję, potwierdzone wyjście zatrzymuje tę samą sesję, chwilowa utrata API jej nie zatrzymuje, a sesja ręczna nigdy nie jest przejmowana przez automat.
 
+#### R-013: urządzenia audio aktywnej przeglądarki
+
+Status: implementacja i testy deterministyczne zakończone w aplikacji 1.1.1; test z fizycznymi endpointami Chrome/Edge/Firefox oczekuje na wykonanie.
+
+- Przy automatycznym starcie skanuj aktywne sesje Core Audio na endpointach Capture i Render.
+- Obsługuj procesy Chrome, Edge, Firefox, Brave, Opera i Vivaldi.
+- Użyj aktywnej sesji mikrofonowej do wyboru rodziny przeglądarki, a wyjście wybierz z tej samej rodziny.
+- Przy wielu niemych sesjach preferuj zapisany endpoint, następnie domyślny komunikacyjny; przy braku detekcji zachowaj zapisane urządzenie.
+- Nie nadpisuj ustawień wykrytymi endpointami i nie przełączaj urządzeń po rozpoczęciu sesji.
+- Ręczny start nie używa detekcji przeglądarki.
+
+Akceptacja: automatyczna sesja używa endpointów aktywnej przeglądarki, zapisuje je w snapshotcie i pokazuje w powiadomieniu; częściowy lub całkowity brak detekcji bezpiecznie korzysta z zapisanych ustawień.
+
 ## Strategia commitów
 
 1. `test: reproduce loopback timeline duplication`
@@ -171,3 +184,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-07-26 | R-010 | Kontrakt XAML okna ustawień | Test regresyjny wymusza `Mode=OneWay` dla `HotkeyPreview` | Wymagane potwierdzenie otwarcia ustawień z tray po instalacji 1.0.1 |
 | 2026-07-26 | R-011 | Windows 11, Media Foundation, `*.mp3.partial` | Test przed poprawką odtwarzał wyjątek sink writera; po poprawce tworzy czytelny MP3 | Zachowane źródła dwóch sesji użytkownika; wymagany test recovery i nagrania w 1.0.2 |
 | 2026-08-08 | R-012, aplikacja 1.1.0 | .NET 8, WPF, Windows DPAPI, OAuth PKCE, podstawiony HTTP bez sieci i urządzeń | 7/7 kontrolera, 4/4 usługi tła, 2/2 kontraktu UI oraz 15/15 token/OAuth/Calendar/Meet; build Release 0 ostrzeżeń; instalator 1.1.0 zbudowany | Pełna brama: 102 testy przeszły, 1 test MF opt-in pominięty, 3 istniejące testy koordynatora niewykonalne w sandboxie z powodu zakazu zapisu do `%LocalAppData%`; `MeetingAudioRecorder-Setup-1.1.0.exe`, SHA-256 `424CD1D2FBA815371C9841693EBEE56DDB017E41BA741D81C85A3CF42608B279`; wymagany prawdziwy login OAuth i Meet |
+| 2026-08-08 | R-013, aplikacja 1.1.1 | .NET 8, Windows Core Audio modelowane bez sprzętu | 5/5 selektora i snapshotu oraz 5/5 usługi automatyzacji; build Release 0 ostrzeżeń; instalator 1.1.1 zbudowany | Pełna brama: 108 testów przeszło, 1 test MF opt-in pominięty, te same 3 istniejące testy koordynatora niewykonalne w sandboxie z powodu zakazu zapisu do `%LocalAppData%`; `MeetingAudioRecorder-Setup-1.1.1.exe`, SHA-256 `84C155DD342D129B69DA3A14B747721892D000CA6EEE56E70E780CDB776D8232`; wymagany test 5A z fizycznymi endpointami Chrome/Edge/Firefox |
