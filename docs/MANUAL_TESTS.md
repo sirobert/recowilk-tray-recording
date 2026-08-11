@@ -117,6 +117,16 @@ Zapisz w raporcie: wersję Windows i aplikacji, typ konta Google, identyfikatory
 3. Oczekiwane: bezpieczne zatrzymanie, zachowanie temp, komunikat, brak crasha.
 4. Możliwość odzyskania / zapis części materiału.
 
+### 8A. R-015 — unieważnienie endpointu podczas capture
+
+1. Zapisz wersję Windows, wersję aplikacji, nazwy i identyfikatory aktywnego mikrofonu oraz urządzenia renderującego.
+2. Rozpocznij nagrywanie i odtwarzaj rozpoznawalny dźwięk przez co najmniej 30 s.
+3. Fizycznie odłącz aktywne urządzenie renderujące albo wyłącz jego adapter Bluetooth; nie zatrzymuj wcześniej nagrania z UI.
+4. Oczekiwane: aplikacja pozostaje uruchomiona i responsywna, sesja przechodzi przez kontrolowany błąd capture, a log nie zawiera `UnhandledException` ani zdarzenia Windows `.NET Runtime 1026`.
+5. Potwierdź, że manifest oraz oba źródłowe WAV pozostają do recovery, jeśli nie opublikowano poprawnego MP3. Zanotuj rozmiary plików, ale nie dołączaj próbek audio.
+6. Uruchom recovery i sprawdź czytelność odzyskanego materiału oraz różnicę jego długości względem czasu od startu do odłączenia.
+7. Powtórz kroki 2–6 dla fizycznego odłączenia aktywnego mikrofonu.
+
 ## 9. Brak miejsca na dysku
 
 1. Wskaż folder na dysku z bardzo małą ilością miejsca (lub użyj małej partycji testowej).

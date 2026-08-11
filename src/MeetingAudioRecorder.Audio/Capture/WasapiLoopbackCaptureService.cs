@@ -15,7 +15,7 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
 {
     private readonly ILogger<WasapiLoopbackCaptureService> _logger;
     private readonly object _sync = new();
-    private WasapiLoopbackCapture? _capture;
+    private ResilientWasapiCapture? _capture;
     private WaveFileWriter? _writer;
     private MMDevice? _device;
     private bool _isCapturing;
@@ -63,8 +63,7 @@ public sealed class WasapiLoopbackCaptureService : ILoopbackCaptureService
                 if (_device.State != DeviceState.Active)
                     throw new InvalidOperationException("Wybrane urządzenie wyjściowe nie jest aktywne.");
 
-                // WasapiLoopbackCapture przypisany do konkretnego MMDevice
-                _capture = new WasapiLoopbackCapture(_device);
+                _capture = new ResilientWasapiCapture(_device, loopback: true);
                 _format = _capture.WaveFormat;
                 _bytesPerFrame = _format.BlockAlign;
 

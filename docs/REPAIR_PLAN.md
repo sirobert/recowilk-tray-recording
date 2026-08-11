@@ -171,6 +171,18 @@ Status: implementacja aplikacji 1.2.2, rozszerzenia Meeting Orgniazer Gemini i t
 
 Akceptacja: otrzymany link Meet bez wpisu Calendar rozpoczyna nagrywanie dopiero po faktycznym dołączeniu połączonego konta, zamknięcie karty bez wiarygodnej odpowiedzi API nie zatrzymuje materiału, a rozszerzenie nie uzyskuje dostępu do tokenów ani historii przeglądania.
 
+#### R-015: bezpieczne zatrzymanie WASAPI po utracie urządzenia
+
+Status: implementacja i testy automatyczne zakończone; test fizycznego odłączenia endpointów oczekuje na wykonanie.
+
+- Zastąp ścieżkę capture, w której wyjątek `AudioClient.Stop()` może opuścić wątek roboczy.
+- Zachowaj błąd odczytu i błąd zatrzymania oraz przekaż je przez `RecordingStopped`/`CaptureError`.
+- Domknij writer WAV i zachowaj manifest oraz obie ścieżki źródłowe do recovery.
+- Dodaj test deterministyczny bez urządzeń dla `AUDCLNT_E_DEVICE_INVALIDATED` (`0x88890004`).
+- Wykonaj manualny test odłączenia aktywnego urządzenia renderującego i mikrofonu.
+
+Akceptacja: odłączenie endpointu podczas nagrywania kończy sesję z błędem i zachowuje materiał, ale nie kończy procesu aplikacji.
+
 ## Strategia commitów
 
 1. `test: reproduce loopback timeline duplication`
@@ -204,3 +216,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-08-08 | R-014 hotfix, aplikacja 1.2.1 | .NET 8, typowani klienci `HttpClient` i kontener DI | 2/2 nowe testy regresyjne odtwarzające wyjątki konstruktorów; 9/9 testów OAuth/token; build Release 0 ostrzeżeń; instalator Inno Setup zbudowany | Pełna brama: 118 testów przeszło, 1 test MF opt-in pominięty, te same 3 istniejące testy koordynatora niewykonalne w sandboxie; `MeetingAudioRecorder-Setup-1.2.1.exe`, 73 724 728 B, SHA-256 `570112B723FBEAF9DEEE41664D6837FF584D567988A9A0749F425AFC3975A808`; oba produkcyjne konstruktory Google wskazane jednoznacznie dla DI |
 | 2026-08-08 | Audyt dokumentacji i rozwiązania | `.sln`, README, workflow AI, testy manualne | 7/7 projektów obecnych w `MeetingAudioRecorder.sln`; brak odwołań do usuniętego alternatywnego formatu i uszkodzonych lokalnych linków Markdown; wersje App/instalatora zgodne: 1.2.1 | Usunięto pusty alternatywny plik rozwiązania; pełna brama: 118 testów przeszło, 1 test MF opt-in pominięty, te same 3 testy koordynatora zablokowane przez zakaz zapisu sandboxa do `%LocalAppData%`; bez zmian kodu i audio |
 | 2026-08-08 | R-014 hotfix, aplikacja 1.2.2 | Rzeczywisty Chrome/Meet użytkownika, log HTTP oraz kontrakt Google Meet API | Rozszerzenie i `spaces.get`: poprawne; `participants.list`: 400 dla błędnej maski `signedInUser`; test regresyjny przed poprawką odtworzył błąd, po zmianie 5/5 testów klientów Workspace przechodzi | Użyto kontraktowego pola `signedinUser` i jawnego mapowania JSON; pełna brama: 118 testów przeszło, 1 test MF opt-in pominięty, te same 3 testy koordynatora zablokowane przez sandbox; `MeetingAudioRecorder-Setup-1.2.2.exe`, 73 723 174 B, SHA-256 `4FB1D4531B580E72F8C55AB9641CB0DF26D7DDEEC6FF38102E8C9853BEE39C2D`; wymagany ponowny test manualny 5B |
+| 2026-08-11 | R-015, aplikacja 1.2.3 | Windows 11, rzeczywista awaria 1.2.2 oraz deterministyczna symulacja `0x88890004` bez urządzeń | Przed poprawką test nie kompilował się z powodu braku bezpiecznej polityki zakończenia; po poprawce 3/3 testy regresyjne i pełna brama 124 testów przeszły, 1 test MF opt-in pominięty; build Release 0 ostrzeżeń | Lokalny adapter przechwytuje osobno błąd pętli i `AudioClient.Stop`, przekazuje oba przez `RecordingStopped` i nie wypuszcza wyjątku z wątku capture. Matematyka ramek, format i długość nie zostały zmienione. Przy błędzie writer jest domykany, a oba WAV i manifest pozostają do recovery. Instalator `MeetingAudioRecorder-Setup-1.2.3.exe`, 73 720 602 B, SHA-256 `AA606354FD500875944099814AF01394848E598BD85A370142D555A0734BA72D`; wymagany manualny test 8A dla render i mikrofonu. |

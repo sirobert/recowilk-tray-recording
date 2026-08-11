@@ -15,7 +15,7 @@ public sealed class WasapiMicrophoneCapture : IMicrophoneCaptureService
 {
     private readonly ILogger<WasapiMicrophoneCapture> _logger;
     private readonly object _sync = new();
-    private WasapiCapture? _capture;
+    private ResilientWasapiCapture? _capture;
     private WaveFileWriter? _writer;
     private MMDevice? _device;
     private bool _isCapturing;
@@ -60,7 +60,7 @@ public sealed class WasapiMicrophoneCapture : IMicrophoneCaptureService
                 if (_device.State != DeviceState.Active)
                     throw new InvalidOperationException("Wybrany mikrofon nie jest aktywny.");
 
-                _capture = new WasapiCapture(_device);
+                _capture = new ResilientWasapiCapture(_device, loopback: false);
                 _format = _capture.WaveFormat;
                 Directory.CreateDirectory(Path.GetDirectoryName(outputWavPath)!);
                 _writer = new WaveFileWriter(outputWavPath, _format);
