@@ -53,4 +53,16 @@ public sealed class BrowserExtensionManifestTests
         Assert.Contains("StringChangeEx(Contents, '__NATIVE_HOST_PATH__', HostPath, True)", installer);
         Assert.Contains("SaveStringToFile(ManifestPath, AnsiString(Contents), False)", installer);
     }
+
+    [Fact]
+    public void Installer_StopsOrphanedNativeHostsBeforeReplacingFiles()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Installer", "installer.iss");
+        var installer = File.ReadAllText(path);
+
+        Assert.Contains("CloseApplicationsFilter=MeetingAudioRecorder.exe", installer);
+        Assert.Contains("function PrepareToInstall(var NeedsRestart: Boolean): String;", installer);
+        Assert.Contains("ExpandConstant('{sys}\\taskkill.exe')", installer);
+        Assert.Contains("/F /IM \"MeetingAudioRecorder.BrowserBridge.exe\"", installer);
+    }
 }

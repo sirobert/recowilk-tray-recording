@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 using System.Text.Json;
+using MeetingAudioRecorder.BrowserBridge;
 using MeetingAudioRecorder.Core.Models;
 
 const string AllowedExtensionOrigin = "chrome-extension://eljjpmlmlnjjpjlnhiilfclkhoecdlij";
@@ -18,7 +19,7 @@ var output = Console.OpenStandardOutput();
 var lengthBuffer = new byte[4];
 var serializerOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-while (await ReadExactOrEndAsync(input, lengthBuffer))
+while (await NativeMessageStreamReader.ReadExactOrEndAsync(input, lengthBuffer))
 {
     var length = BinaryPrimitives.ReadInt32LittleEndian(lengthBuffer);
     if (length is <= 0 or > MaximumMessageBytes)
@@ -28,7 +29,7 @@ while (await ReadExactOrEndAsync(input, lengthBuffer))
     }
 
     var payload = new byte[length];
-    if (!await ReadExactOrEndAsync(input, payload))
+    if (!await NativeMessageStreamReader.ReadExactOrEndAsync(input, payload))
         return 4;
 
     try
@@ -81,20 +82,6 @@ static async Task PersistStateAsync(ExtensionStateMessage? message)
         if (File.Exists(temporaryPath))
             File.Delete(temporaryPath);
     }
-}
-
-static async Task<bool> ReadExactOrEndAsync(Stream stream, Memory<byte> buffer)
-{
-    var total = 0;
-    while (total < buffer.Length)
-    {
-        var read = await stream.ReadAsync(buffer[total..]);
-        if (read == 0)
-            return total == 0;
-        total += read;
-    }
-
-    return true;
 }
 
 static async Task WriteResponseAsync(Stream output, object response)

@@ -158,7 +158,7 @@ Akceptacja: automatyczna sesja używa endpointów aktywnej przeglądarki, zapisu
 
 #### R-014: linki Google Meet bez wydarzenia Calendar
 
-Status: implementacja aplikacji 1.2.2, rozszerzenia Meeting Orgniazer Gemini i testy deterministyczne zakończone; naprawiono jednoznaczne tworzenie klientów Google OAuth przez DI oraz zgodność maski `signedinUser` z Meet API; ponowny test prawdziwego linku Meet oczekuje na wykonanie scenariusza 5B.
+Status: implementacja aplikacji 1.2.4, rozszerzenia Meeting Orgniazer Gemini i testy deterministyczne zakończone; naprawiono jednoznaczne tworzenie klientów Google OAuth przez DI, zgodność maski `signedinUser` z Meet API oraz blokowanie nowych linków przez zakończone śledzone spotkanie; ponowny test prawdziwego linku Meet oczekuje na wykonanie scenariusza 5B.
 
 - Dostarcz rozszerzenie Manifest V3 dla Chrome/Edge działające wyłącznie na `meet.google.com`.
 - Przekazuj przez Native Messaging jedynie kod spotkania i nazwę przeglądarki; token OAuth pozostaje wyłącznie w aplikacji.
@@ -167,9 +167,10 @@ Status: implementacja aplikacji 1.2.2, rozszerzenia Meeting Orgniazer Gemini i t
 - Traktuj link jako kandydata; faktyczny start nadal wymaga potwierdzenia obecności bieżącego konta przez Meet API.
 - Sygnał rozszerzenia ma wybudzać sprawdzenie bez zwiększania częstotliwości odpytywania Calendar.
 - Brak, zamknięcie lub awaria rozszerzenia nie może samodzielnie zatrzymać trwającego nagrania.
+- Po zakończeniu nagrania i potwierdzonym opuszczeniu śledzonego spotkania zwalniaj je, aby nowy aktywny link mógł zostać sprawdzony bez restartu aplikacji.
 - Udostępnij pakiet z Ustawień; jawnie opisz wymagany ręczny krok `Załaduj rozpakowane`, dopóki rozszerzenie nie trafi do sklepów.
 
-Akceptacja: otrzymany link Meet bez wpisu Calendar rozpoczyna nagrywanie dopiero po faktycznym dołączeniu połączonego konta, zamknięcie karty bez wiarygodnej odpowiedzi API nie zatrzymuje materiału, a rozszerzenie nie uzyskuje dostępu do tokenów ani historii przeglądania.
+Akceptacja: otrzymany link Meet bez wpisu Calendar rozpoczyna nagrywanie dopiero po faktycznym dołączeniu połączonego konta, kolejne spotkanie uruchamia automat bez restartu po opuszczeniu poprzedniego, zamknięcie karty bez wiarygodnej odpowiedzi API nie zatrzymuje materiału, a rozszerzenie nie uzyskuje dostępu do tokenów ani historii przeglądania.
 
 #### R-015: bezpieczne zatrzymanie WASAPI po utracie urządzenia
 
@@ -182,6 +183,17 @@ Status: implementacja i testy automatyczne zakończone; test fizycznego odłącz
 - Wykonaj manualny test odłączenia aktywnego urządzenia renderującego i mikrofonu.
 
 Akceptacja: odłączenie endpointu podczas nagrywania kończy sesję z błędem i zachowuje materiał, ale nie kończy procesu aplikacji.
+
+#### R-016: kończenie Native Messaging hosta po zamknięciu przeglądarki
+
+Status: implementacja aplikacji 1.2.5 i testy deterministyczne zakończone; test z rzeczywistym restartem service workera Chrome/Edge oczekuje na wykonanie.
+
+- Traktuj EOF na stdin jako koniec połączenia Native Messaging i zakończ proces hosta kodem 0.
+- Nie przetwarzaj ponownie poprzedniego nagłówka wiadomości po zamknięciu pipe przez przeglądarkę.
+- Przed aktualizacją zakończ osierocone procesy `MeetingAudioRecorder.BrowserBridge.exe` ze starszych wersji.
+- Nie zatrzymuj ani nie modyfikuj głównej sesji nagrywania przy zamknięciu mostu.
+
+Akceptacja: po zamknięciu portu Native Messaging proces hosta kończy się w ciągu 2 sekund bez aktywnej pętli CPU, a instalator może zastąpić plik bez ręcznego zamykania osieroconych instancji.
 
 ## Strategia commitów
 
@@ -217,3 +229,5 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-08-08 | Audyt dokumentacji i rozwiązania | `.sln`, README, workflow AI, testy manualne | 7/7 projektów obecnych w `MeetingAudioRecorder.sln`; brak odwołań do usuniętego alternatywnego formatu i uszkodzonych lokalnych linków Markdown; wersje App/instalatora zgodne: 1.2.1 | Usunięto pusty alternatywny plik rozwiązania; pełna brama: 118 testów przeszło, 1 test MF opt-in pominięty, te same 3 testy koordynatora zablokowane przez zakaz zapisu sandboxa do `%LocalAppData%`; bez zmian kodu i audio |
 | 2026-08-08 | R-014 hotfix, aplikacja 1.2.2 | Rzeczywisty Chrome/Meet użytkownika, log HTTP oraz kontrakt Google Meet API | Rozszerzenie i `spaces.get`: poprawne; `participants.list`: 400 dla błędnej maski `signedInUser`; test regresyjny przed poprawką odtworzył błąd, po zmianie 5/5 testów klientów Workspace przechodzi | Użyto kontraktowego pola `signedinUser` i jawnego mapowania JSON; pełna brama: 118 testów przeszło, 1 test MF opt-in pominięty, te same 3 testy koordynatora zablokowane przez sandbox; `MeetingAudioRecorder-Setup-1.2.2.exe`, 73 723 174 B, SHA-256 `4FB1D4531B580E72F8C55AB9641CB0DF26D7DDEEC6FF38102E8C9853BEE39C2D`; wymagany ponowny test manualny 5B |
 | 2026-08-11 | R-015, aplikacja 1.2.3 | Windows 11, rzeczywista awaria 1.2.2 oraz deterministyczna symulacja `0x88890004` bez urządzeń | Przed poprawką test nie kompilował się z powodu braku bezpiecznej polityki zakończenia; po poprawce 3/3 testy regresyjne i pełna brama 124 testów przeszły, 1 test MF opt-in pominięty; build Release 0 ostrzeżeń | Lokalny adapter przechwytuje osobno błąd pętli i `AudioClient.Stop`, przekazuje oba przez `RecordingStopped` i nie wypuszcza wyjątku z wątku capture. Matematyka ramek, format i długość nie zostały zmienione. Przy błędzie writer jest domykany, a oba WAV i manifest pozostają do recovery. Instalator `MeetingAudioRecorder-Setup-1.2.3.exe`, 73 720 602 B, SHA-256 `AA606354FD500875944099814AF01394848E598BD85A370142D555A0734BA72D`; wymagany manualny test 8A dla render i mikrofonu. |
+| 2026-08-17 | R-014 hotfix, aplikacja 1.2.4 | Windows 11, rzeczywiste rozszerzenie Chrome i Meet `authuser=2`; deterministyczny test dwóch kolejnych spotkań bez restartu | Przed poprawką nowy kod Meet miał 0 wywołań, a stary 3; po poprawce test regresyjny i pełna brama 125 testów przeszły, 1 test MF opt-in pominięty; build Release 0 ostrzeżeń | Zakończone śledzone spotkanie jest zwalniane dopiero po potwierdzonej nieobecności i tylko gdy żadne nagranie nie jest aktywne. Aktywne nagranie nadal zachowuje właściciela i procedurę bezpiecznego stopu. Instalator `MeetingAudioRecorder-Setup-1.2.4.exe`, 73 719 261 B, SHA-256 `0842826987E35D4F817E1825CE3A677DB0435442DBA70130794D8E6D5FC6D201`; wymagany manualny test 5B.10 z dwoma prawdziwymi spotkaniami. |
+| 2026-08-17 | R-016, aplikacja 1.2.5 | Windows 11, dwie osierocone instancje hosta z nieistniejącymi rodzicami; syntetyczny stdin i proces potomny bez przeglądarki | Przed poprawką czysty EOF zwracał `true`, a każda osierocona instancja zużywała około jednego rdzenia; po poprawce host kończy się kodem 0 poniżej 2 s. Pełna brama: 129 testów przeszło, 1 test MF opt-in pominięty; build Release 0 ostrzeżeń | Instalator 1.2.5 kończy stare hosty przez dokładną nazwę procesu przed kontrolą plików w użyciu; skrypt przeszedł kompilację Inno Setup 6.7.3. `MeetingAudioRecorder-Setup-1.2.5.exe`, 73 718 575 B, SHA-256 `24BBD228C13C5288A748A46F438E2720D15F6C69A2D38033AC2C5229F5E3E5BD`; wymagany manualny test 5C z Chrome/Edge. |

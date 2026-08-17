@@ -70,6 +70,15 @@ Zapisz w raporcie: wersję Windows i aplikacji, typ konta Google, identyfikatory
 7. Zamknij kartę lub wyłącz rozszerzenie. Oczekiwane: stan linku wygasa najpóźniej po 90 sekundach; samo zniknięcie rozszerzenia nie zatrzymuje trwającego nagrania przy błędzie API.
 8. Powtórz dla Edge. Następnie otwórz dwa różne linki Meet i dołącz tylko do jednego; oczekiwane: aplikacja sprawdza oba kody, ale uruchamia jedną sesję dla konferencji z aktywnym użytkownikiem.
 9. Przejrzyj `%LOCALAPPDATA%\MeetingAudioRecorder\Browser\active-meet.json`. Oczekiwane: wyłącznie wersja, czas, kod spotkania i nazwa przeglądarki; brak URL query, tokenów, e-maili, tytułów kart i list uczestników.
+10. Po automatycznym starcie zatrzymaj nagranie ręcznie, opuść pierwsze spotkanie i dołącz do innego aktywnego linku bez restartowania aplikacji. Oczekiwane: po potwierdzeniu nieobecności w poprzednim Meet aplikacja sprawdza nowy kod i uruchamia drugie nagranie automatycznie; podczas aktywnego nagrania nie przełącza śledzonego spotkania.
+
+### 5C. R-016 — cykl życia Native Messaging hosta
+
+1. Zainstaluj aplikację 1.2.5 nad wersją zawierającą osierocone procesy `MeetingAudioRecorder.BrowserBridge.exe`. Oczekiwane: instalator kończy stare hosty i zastępuje pliki bez żądania ich ręcznego zamknięcia.
+2. Otwórz Meet z aktywnym rozszerzeniem i potwierdź powstanie jednego procesu hosta dla aktywnego portu Native Messaging.
+3. Zamknij kartę Meet, wyłącz rozszerzenie albo zamknij Chrome/Edge. Oczekiwane: odpowiadający proces hosta kończy się w ciągu 2 sekund.
+4. Powtórz uruchomienie i zamknięcie service workera co najmniej 10 razy. Oczekiwane: liczba hostów nie narasta, a po zamknięciu połączeń żaden proces nie zużywa stale rdzenia CPU.
+5. Podczas aktywnego nagrania wymuś restart service workera rozszerzenia. Oczekiwane: nagrywanie trwa bez zmian; po ponownym połączeniu świeży stan linku znów jest publikowany.
 
 ## 6. Microsoft Teams
 

@@ -2,7 +2,7 @@
 ; Nie usuwa nagrań użytkownika przy deinstalacji.
 
 #define MyAppName "Meeting Audio Recorder"
-#define MyAppVersion "1.2.3"
+#define MyAppVersion "1.2.5"
 #define MyAppPublisher "MeetingAudioRecorder"
 #define MyAppExeName "MeetingAudioRecorder.exe"
 
@@ -24,6 +24,7 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes
+CloseApplicationsFilter=MeetingAudioRecorder.exe
 
 [Languages]
 Name: "polish"; MessagesFile: "compiler:Languages\Polish.isl"
@@ -78,6 +79,23 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
     InstallNativeMessagingManifest();
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Result := '';
+  if Exec(
+       ExpandConstant('{sys}\taskkill.exe'),
+       '/F /IM "MeetingAudioRecorder.BrowserBridge.exe"',
+       '',
+       SW_HIDE,
+       ewWaitUntilTerminated,
+       ResultCode) then
+    Log(Format('Zamykanie Native Messaging host zakończone kodem %d.', [ResultCode]))
+  else
+    Log('Nie udało się uruchomić taskkill dla Native Messaging host.');
 end;
 
 function InitializeUninstall(): Boolean;

@@ -106,6 +106,32 @@ public sealed class MeetingAutomationServiceTests
     }
 
     [Fact]
+    public async Task CompletedTrackedMeeting_DoesNotBlockNewActiveBrowserMeeting()
+    {
+        var fixture = new Fixture();
+
+        await fixture.Service.CheckNowAsync();
+        fixture.CompleteRecordingExternally();
+        await fixture.Service.CheckNowAsync();
+
+        fixture.PresenceByMeetingCode["abc-defg-hij"] = MeetingPresenceStatus.Absent;
+        fixture.PresenceByMeetingCode["tcu-ysxp-tvw"] = MeetingPresenceStatus.Present;
+        fixture.ActiveMeetLinks.Setup(value => value.GetActiveLinksAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new BrowserMeetLink("tcu-ysxp-tvw", "chrome", Now)]);
+
+        await fixture.Service.CheckNowAsync();
+
+        fixture.Meet.Verify(value => value.GetCurrentUserPresenceAsync(
+            "tcu-ysxp-tvw",
+            "users/me-123",
+            It.IsAny<CancellationToken>()), Times.Once);
+        fixture.Coordinator.Verify(value => value.StartRecordingWithDevicesAsync(
+            It.IsAny<RecordingDeviceSelection>(),
+            It.IsAny<CancellationToken>()), Times.Exactly(2));
+        Assert.Equal("Google Meet tcu-ysxp-tvw", fixture.Service.Status.MeetingTitle);
+    }
+
+    [Fact]
     public async Task ThreeConfirmedAbsencesAfterGrace_StopOwnedRecording()
     {
         var fixture = new Fixture();
@@ -170,14 +196,15 @@ public sealed class MeetingAutomationServiceTests
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(() =>
+                .ReturnsAsync((string meetingCode, string _, CancellationToken _) =>
                 {
                     if (ThrowMeetError)
                         throw new HttpRequestException("Temporary API failure.");
+                    var presence = PresenceByMeetingCode.GetValueOrDefault(meetingCode, Presence);
                     return new GoogleMeetPresence(
-                        "abc-defg-hij",
-                        "conferenceRecords/conference-1",
-                        Presence);
+                        meetingCode,
+                        presence == MeetingPresenceStatus.Present ? "conferenceRecords/conference-1" : null,
+                        presence);
                 });
 
             DeviceResolver.Setup(value => value.DetectActiveBrowserDevices(
@@ -240,8 +267,15 @@ public sealed class MeetingAutomationServiceTests
         public FakeTimeProvider Time { get; } = new(Now);
         public MeetingAutomationService Service { get; }
         public MeetingPresenceStatus Presence { get; set; } = MeetingPresenceStatus.Present;
+        public Dictionary<string, MeetingPresenceStatus> PresenceByMeetingCode { get; } = [];
         public bool ThrowMeetError { get; set; }
         public AppRecordingState RecordingState { get; private set; } = AppRecordingState.Idle;
+
+        public void CompleteRecordingExternally()
+        {
+            RecordingState = AppRecordingState.Completed;
+            _session = null;
+        }
     }
 
     private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider

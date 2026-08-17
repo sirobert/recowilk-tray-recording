@@ -280,7 +280,13 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
                 _trackedMeeting.MeetingCode,
                 accountUserId,
                 cancellationToken).ConfigureAwait(false);
-            return (_trackedMeeting, trackedPresence.Status);
+            if (trackedPresence.Status is MeetingPresenceStatus.Present or MeetingPresenceStatus.Unknown
+                || HasActiveRecording())
+            {
+                return (_trackedMeeting, trackedPresence.Status);
+            }
+
+            _trackedMeeting = null;
         }
 
         var now = _timeProvider.GetUtcNow();
@@ -448,12 +454,15 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
         };
 
     private Guid? GetActiveRecordingId()
+        => HasActiveRecording()
+            ? _recordingCoordinator.CurrentSession?.RecordingId
+            : null;
+
+    private bool HasActiveRecording()
         => _recordingCoordinator.State is AppRecordingState.Starting
             or AppRecordingState.Recording
             or AppRecordingState.Stopping
-            or AppRecordingState.Processing
-            ? _recordingCoordinator.CurrentSession?.RecordingId
-            : null;
+            or AppRecordingState.Processing;
 
     private void PublishApiUnavailable(bool isAuthenticated)
     {
