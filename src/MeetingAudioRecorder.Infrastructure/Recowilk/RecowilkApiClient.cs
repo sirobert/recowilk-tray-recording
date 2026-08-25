@@ -66,13 +66,9 @@ internal sealed class RecowilkApiClient(IHttpClientFactory factory)
         await EnsureSuccessAsync(response, ct).ConfigureAwait(false);
     }
 
-    public async Task CompleteAsync(Uri baseUri, string key, Guid uploadId, CancellationToken ct)
-    {
-        using var request = CreateRequest(HttpMethod.Post,
-            new(baseUri, $"api/v1/ingest/uploads/{uploadId:D}/complete?startProcessing=true"), key, null, null);
-        using var response = await Client().SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
-        await EnsureSuccessAsync(response, ct).ConfigureAwait(false);
-    }
+    public Task<CompleteUploadResponse> CompleteAsync(Uri baseUri, string key, Guid uploadId, CancellationToken ct) =>
+        SendAsync<CompleteUploadResponse>(HttpMethod.Post,
+            new(baseUri, $"api/v1/ingest/uploads/{uploadId:D}/complete?startProcessing=true"), key, null, null, ct);
 
     private async Task<T> SendAsync<T>(HttpMethod method, Uri uri, string key, HttpContent? content,
         string? idempotencyKey, CancellationToken ct, HttpStatusCode? requiredStatus = null)
@@ -132,3 +128,4 @@ internal sealed record PingResponse(string Status, string ApiVersion, Guid Organ
 internal sealed record CreateMeetingResponse(Guid MeetingId, bool Created);
 internal sealed record InitUploadResponse(Guid UploadId, int ChunkSize, int TotalChunks, DateTimeOffset? ExpiresAt);
 internal sealed record UploadStatusResponse(Guid UploadId, string Status, int[] ReceivedChunks, int[] MissingChunks);
+internal sealed record CompleteUploadResponse(Guid? AudioAssetId, Guid? ProcessingJobId);

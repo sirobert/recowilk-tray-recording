@@ -34,6 +34,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddHttpClient<IGoogleMeetClient, GoogleMeetClient>();
         services.AddSingleton<IActiveMeetLinkProvider, FileActiveMeetLinkProvider>();
         services.AddSingleton<IRecowilkCredentialStore, ProtectedFileRecowilkCredentialStore>();
+        services.AddSingleton<IRecordingCatalog, ProtectedFileRecordingCatalog>();
         services.AddHttpClient("recowilk", client => client.Timeout = TimeSpan.FromMinutes(10));
         services.AddSingleton<IRecowilkUploadQueue, RecowilkUploadQueue>();
         return services;

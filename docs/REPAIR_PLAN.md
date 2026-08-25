@@ -436,6 +436,36 @@ Akceptacja końcowa R-017: wszystkie testy automatyczne przechodzą, wykonano i 
 
 Po każdym commicie należy uruchomić `./scripts/verify.ps1`. Commity `test:` mają wykazać niepowodzenie przed odpowiadającym im commitem `fix:` i przejść po naprawie.
 
+### R-018 — lokalny katalog nagrań i kontrola eksportu
+
+Status: implementacja lokalna; wymagany odbiór manualny Windows i E2E RecoWilk.
+
+Zakres:
+
+- Oddziel trwałą historię nagrań od wykonawczej kolejki uploadu, której wpis jest usuwany po potwierdzonej finalizacji.
+- Utrwalaj finalny MP3, metadane Calendar/Meet, uczestników, identyfikatory zdalne, postęp, próby, bezpieczną kategorię błędu, HTTP status, `traceId` i terminy retry.
+- Szyfruj każdy wpis katalogu DPAPI `CurrentUser`, publikuj go atomowo i izoluj uszkodzone wpisy w kwarantannie.
+- Migruj oczekujące wpisy kolejki nawet przy wyłączonym eksporcie; istniejące MP3 importuj bez wymyślania utraconych metadanych.
+- Dodaj okno `Nagrania i eksport` z filtrowaniem, wyszukiwaniem, szczegółami, uczestnikami, diagnostyką i akcjami otwarcia pliku/folderu, kopiowania `traceId` oraz ponowienia.
+- Ręczne ponowienie zachowuje `recordingId`, `externalId` i poprawne istniejące identyfikatory sesji. Nie pozwala ponownie wysyłać wpisu już potwierdzonego jako wyeksportowany.
+- Zdarzenia katalogu mogą przychodzić z workera; ViewModel przełącza aktualizację na Dispatcher i wykonuje operacje plikowe/retry poza wątkiem UI.
+- `Wysłano do RecoWilk` oznacza potwierdzone `complete` i zachowane identyfikatory assetu/joba, nie zakończenie pipeline transkrypcji.
+
+Testy rozpoczynające krok:
+
+- Szyfrowany roundtrip katalogu, brak jawnego e-maila/opisu, kwarantanna uszkodzonego wpisu i import istniejącego MP3.
+- Produkcyjny przypadek `ping=200`, `POST meeting=500`: katalog pokazuje HTTP 500 i `traceId`, a retry po naprawie zachowuje to samo `externalId`.
+- Migracja istniejącej kolejki przy wyłączonej integracji, zachowanie MP3 po sukcesie i kontrakt XAML metadanych, uczestników, statusu i retry.
+
+Akceptacja: historia pozostaje po sukcesie i restarcie, użytkownik widzi faktyczny etap/błąd, może bezpiecznie wznowić właściwe nagranie, dane osobowe pozostają zaszyfrowane lokalnie, a katalog nie może blokować zachowania ani wysłania kolejki.
+
+Kolejność commitów:
+
+1. `test: cover persistent recording catalog and retry`
+2. `feat: add encrypted recording catalog and export control`
+3. `feat: add recordings and export window`
+4. `docs: document recording catalog and manual validation`
+
 ## Strategia commitów
 
 1. `test: reproduce loopback timeline duplication`
@@ -477,3 +507,4 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-08-25 | R-017 — ponowny audyt i kompletny plan naprawczy | Dokumentacja oraz analiza statyczna klienta; bez zmian zachowania | `./scripts/verify.ps1`: 134 testy przeszły, 1 test Media Foundation opt-in pominięty; build Release 0 ostrzeżeń | Plan R-017A–R-017H obejmuje kontrakt, migrację kolejki v2, tenant binding, maszynę stanów, chunki, retry, prywatność, shutdown i E2E. Testy RecoWilk nadal obejmują tylko trzy przypadki połączenia; implementacja planu nie została rozpoczęta. |
 | 2026-08-25 | R-017A–R-017H — implementacja lokalna | .NET 8, podstawiony HTTP, izolowane pliki kolejki, bez produkcyjnego API i urządzeń audio | `./scripts/verify.ps1`: 149 testów przeszło, 1 test Media Foundation opt-in pominięty; build Release 0 ostrzeżeń | Testy potwierdzają wyłącznie `200` dla ping, tenant binding, rotację celu, pełny upload, DPAPI-ready queue v2, migrację v1, `410`, `422`, walidację geometrii i indeksów, izolację uszkodzonego wpisu, pozostawienie MP3, idempotentny dispose, maskowanie klucza i rollback ustawień. Oczekuje manualny scenariusz 17 z testową instancją RecoWilk. |
 | 2026-08-25 | R-017 — artefakt 1.3.0 | Windows 11 x64, .NET 8 self-contained, Inno Setup 6.7.3 | Instalator zbudowany po przejściu bramy automatycznej | `MeetingAudioRecorder-Setup-1.3.0.exe`, 73 748 822 B, SHA-256 `FEDBBE20B4D5D2898389EC86428284EA829CE17A814B565ADEE45366E3A5ECB1`; plik nie ma podpisu Authenticode. Przed wdrożeniem produkcyjnym nadal wymagany manualny scenariusz 17 z testową instancją RecoWilk. |
+| 2026-08-25 | R-018, aplikacja 1.4.0 | .NET 8, Windows DPAPI, podstawiony HTTP, izolowane pliki katalogu i kolejki, kontrakt XAML bez uruchamiania prawdziwego okna | `./scripts/verify.ps1`: 156 testów przeszło, 1 test Media Foundation opt-in pominięty; build Release 0 ostrzeżeń | Testy potwierdzają szyfrowany roundtrip i kwarantannę katalogu, import MP3 i oczekującej kolejki, przypadek `ping=200`/`POST meeting=500`, zachowanie HTTP/trace, idempotentny retry, postęp i trwałą historię po `complete`. Inno Setup 6.7.3: `MeetingAudioRecorder-Setup-1.4.0.exe`, 73 762 052 B, SHA-256 `C1282B559509D583196BB3F805AF11CF38DA4017AD3E01EEABF90E0E1E76A2A7`; brak podpisu Authenticode. Wymagany manualny scenariusz 18 na Windows z prawdziwym Meet i RecoWilk. |

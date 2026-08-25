@@ -25,6 +25,7 @@ public partial class App : Application
     private HotkeyService? _hotkeyService;
     private HostWindow? _hostWindow;
     private SettingsWindow? _settingsWindow;
+    private RecordingsWindow? _recordingsWindow;
     private ILogger<App>? _logger;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -177,13 +178,15 @@ public partial class App : Application
         services.AddSingleton<IMeetingAutomationService, MeetingAutomationService>();
 
         services.AddTransient<SettingsViewModel>();
+        services.AddTransient<RecordingsViewModel>();
         services.AddSingleton<TrayViewModel>(sp =>
             new TrayViewModel(
                 sp.GetRequiredService<IRecordingCoordinator>(),
                 sp.GetRequiredService<ISettingsService>(),
                 sp.GetRequiredService<INotificationService>(),
                 sp.GetRequiredService<ILogger<TrayViewModel>>(),
-                OpenSettings));
+                OpenSettings,
+                OpenRecordings));
     }
 
     private void OpenSettings()
@@ -211,6 +214,27 @@ public partial class App : Application
             Apply();
         else
             _ = Dispatcher.InvokeAsync(Apply);
+    }
+
+    private void OpenRecordings()
+    {
+        void Apply()
+        {
+            if (_recordingsWindow is not null)
+            {
+                _recordingsWindow.Activate();
+                _recordingsWindow.WindowState = WindowState.Normal;
+                return;
+            }
+
+            var vm = _services!.GetRequiredService<RecordingsViewModel>();
+            _recordingsWindow = new RecordingsWindow(vm);
+            _recordingsWindow.Closed += (_, _) => _recordingsWindow = null;
+            _recordingsWindow.Show();
+        }
+
+        if (Dispatcher.CheckAccess()) Apply();
+        else _ = Dispatcher.InvokeAsync(Apply);
     }
 
     private void OnDeviceChanged(object? sender, DeviceChangedEventArgs e)

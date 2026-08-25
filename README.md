@@ -26,6 +26,7 @@ Przeznaczona do nagrywania spotkań (Google Meet, Microsoft Teams, Zoom itd.) z 
 - Logi z rotacją (bez treści audio)
 - Opcjonalna automatyka Google Meet: Calendar lub rozszerzenie wskazuje spotkanie, a obecność użytkownika steruje startem i stopem
 - Opcjonalna integracja RecoWilk wysyłająca gotowy MP3 po bezpiecznym, wznawialnym uploadzie
+- Lokalne okno **Nagrania i eksport** z metadanymi, uczestnikami, postępem, błędami i ręcznym ponawianiem eksportu
 
 ---
 
@@ -148,6 +149,7 @@ dotnet test MeetingAudioRecorder.sln -c Release
 4. **Testuj przechwytywanie dźwięku** — odtwórz dźwięk na słuchawkach, obserwuj poziom.
 5. Zapisz ustawienia.
 6. Naciśnij **Ctrl+Alt+R** (lub menu tray) — start nagrywania (ikona zmienia kolor).
+7. Wybierz z tray **Nagrania i eksport**, aby zobaczyć lokalną historię, metadane i stan wysyłania do RecoWilk.
 7. Ponownie **Ctrl+Alt+R** — stop, przetwarzanie, plik MP3 w folderze nagrań  
    (domyślnie `Dokumenty\Nagrania spotkań`).
 
@@ -234,6 +236,7 @@ Przy uszkodzonym JSON: kopia `.corrupt.*.bak`, domyślne wartości, aplikacja dz
 | Logi | `%LOCALAPPDATA%\MeetingAudioRecorder\Logs` |
 | Temp / odzyskiwanie | `%LOCALAPPDATA%\MeetingAudioRecorder\Temp` |
 | Kolejka RecoWilk | `%LOCALAPPDATA%\MeetingAudioRecorder\Uploads` — wpisy zaszyfrowane DPAPI |
+| Katalog nagrań | `%LOCALAPPDATA%\MeetingAudioRecorder\Recordings` — historia i metadane zaszyfrowane DPAPI |
 | Automatyka Google nie startuje | To samo konto w aplikacji i Meet; dla spotkania bez Calendar sprawdź, czy Meeting Orgniazer Gemini jest włączone |
 | Google prosi o ponowne logowanie | Połącz konto ponownie; dostęp mógł zostać cofnięty lub token wygasł |
 
@@ -246,11 +249,11 @@ Przy uszkodzonym JSON: kopia `.corrupt.*.bak`, domyślne wartości, aplikacja dz
 - Treść audio **nie** jest logowana.
 - Nagrywanie jest **zawsze widoczne** na ikonie tray.
 - Bez włączonej automatyki aplikacja nie łączy się z Google.
-- Po włączeniu automatyki pobierane są metadane Calendar/Meet potrzebne do wykrycia wydarzenia, obecności i opisania nagrania. Po włączeniu RecoWilk tytuł, opis, link, terminy i uczestnicy mogą być przechowywani wyłącznie w zaszyfrowanym wpisie oczekującej kolejki oraz wysłani do wskazanego serwera; nie trafiają do logów.
+- Po włączeniu automatyki pobierane są metadane Calendar/Meet potrzebne do wykrycia wydarzenia, obecności i opisania nagrania. Tytuł, opis, link, terminy i uczestnicy są przechowywani w lokalnym katalogu szyfrowanym DPAPI. Po włączeniu RecoWilk trafiają także do szyfrowanej kolejki i są wysyłane do wskazanego serwera; nie trafiają do logów.
 - Meeting Orgniazer Gemini działa tylko na `meet.google.com`; przekazuje lokalnie kod spotkania i nazwę przeglądarki, bez tokenów, tytułów kart i historii. Stan w `%LOCALAPPDATA%\MeetingAudioRecorder\Browser` wygasa po 90 sekundach.
 - Token OAuth jest szyfrowany przez Windows DPAPI dla bieżącego użytkownika.
 - Klucz API RecoWilk jest szyfrowany osobno przez Windows DPAPI, nigdy nie trafia do `settings.json` ani logów.
-- Dane lokalne: MP3, ustawienia, zaszyfrowany token Google, zaszyfrowany klucz i kolejka RecoWilk oraz logi w profilu użytkownika.
+- Dane lokalne: MP3, ustawienia, zaszyfrowany katalog nagrań, token Google, klucz i kolejka RecoWilk oraz logi w profilu użytkownika.
 
 ---
 

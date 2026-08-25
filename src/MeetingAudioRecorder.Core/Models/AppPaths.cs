@@ -19,6 +19,7 @@ public static class AppPaths
     public static string BrowserExtensionDirectory => Path.Combine(BrowserDirectory, "MeetingOrgniazerGemini");
     public static string RecowilkCredentialPath => Path.Combine(LocalAppData, "recowilk-key.dat");
     public static string RecowilkUploadsDirectory => Path.Combine(LocalAppData, "Uploads");
+    public static string RecordingCatalogDirectory => Path.Combine(LocalAppData, "Recordings");
     public static string MutexName => @"Local\MeetingAudioRecorder_SingleInstance_v1";
 
     public static void EnsureDirectories()
@@ -27,5 +28,6 @@ public static class AppPaths
         Directory.CreateDirectory(LogsDirectory);
         Directory.CreateDirectory(TempDirectory);
         Directory.CreateDirectory(RecowilkUploadsDirectory);
+        Directory.CreateDirectory(RecordingCatalogDirectory);
     }
 }

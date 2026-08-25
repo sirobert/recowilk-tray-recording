@@ -242,6 +242,22 @@ Zapisz w raporcie: wersję Windows i aplikacji, typ konta Google, identyfikatory
 13. Sprawdź `%LOCALAPPDATA%\MeetingAudioRecorder\Uploads` podczas oczekiwania. Jawne pliki nie mogą zawierać klucza, tytułu, opisu, URL ani danych uczestników. Uszkodzony wpis ma trafić do kwarantanny i nie blokować następnego nagrania.
 14. Zamknij aplikację podczas PUT, uruchom ją ponownie i sprawdź, że nie ma wyjątku shutdownu, duplikatu assetu ani utraty wpisu kolejki.
 
+## 18. R-018 — katalog nagrań i ręczne ponawianie eksportu
+
+1. Nagraj spotkanie Google Meet zawierające tytuł, opis i co najmniej dwóch uczestników.
+2. Po zapisaniu MP3 otwórz z tray `Nagrania i eksport`; wpis ma pojawić się bez restartu.
+3. Sprawdź tytuł, opis, terminy, link, czas trwania, rozmiar MP3 oraz nazwę, e-mail i rolę uczestników.
+4. Wymuś `500` dla `POST /api/v1/ingest/meetings`. Oczekiwane: status błędu serwera, HTTP 500, liczba prób, termin retry i `traceId`; MP3 pozostaje lokalnie.
+5. Przywróć backend i wybierz `Ponów eksport`. Oczekiwane: ten sam `recordingId`/`externalId`, brak duplikatu spotkania, widoczny postęp fragmentów i końcowy status `Wysłano do RecoWilk`.
+6. Kliknij `Ponów eksport` wielokrotnie podczas aktywnej operacji. Oczekiwane: jedna kolejka i jeden upload; UI pozostaje responsywne.
+7. Uruchom ponownie aplikację podczas oczekiwania i podczas wysyłania. Status, metadane, identyfikatory i postęp mają zostać odtworzone.
+8. Wyłącz eksport i wykonaj nagranie. Wpis ma mieć status `Tylko lokalnie`; po włączeniu integracji przycisk ponowienia dodaje go do kolejki.
+9. Usuń testowy MP3 poza aplikacją. Historia pozostaje, status zmienia się na `Brak lokalnego pliku`, a ponowienie jest zablokowane.
+10. Sprawdź `%LOCALAPPDATA%\MeetingAudioRecorder\Recordings`: jawne pliki nie mogą zawierać tytułu, opisu, URL ani danych uczestników.
+11. Podstaw uszkodzony plik `.recording`. Oczekiwane: kwarantanna `.corrupt.*`, pozostałe nagrania są nadal widoczne.
+12. Dla MP3 istniejących przed 1.4.0 potwierdź import nazwy, daty i rozmiaru. Brak dawnych uczestników/opisu jest oczekiwany, jeśli nie zachował się wpis kolejki.
+13. Po sukcesie odróżnij `Wysłano do RecoWilk` od zakończenia transkrypcji — formatka potwierdza przyjęcie uploadu, nie wynik całego pipeline serwera.
+
 ## Checklist kryteriów odbioru
 
 | # | Kryterium | OK? |
@@ -276,3 +292,7 @@ Zapisz w raporcie: wersję Windows i aplikacji, typ konta Google, identyfikatory
 | 28 | Restart i utrata sieci wznawiają wyłącznie brakujące fragmenty | |
 | 29 | Retry tworzy jedno spotkanie i jeden finalny asset | |
 | 30 | Wysłanie nie usuwa lokalnego MP3 | |
+| 31 | Katalog zachowuje nagrania i metadane po udanym eksporcie i restarcie | |
+| 32 | HTTP status, retry i traceId są widoczne bez ujawniania sekretów | |
+| 33 | Ręczne ponowienie zachowuje recordingId i nie tworzy duplikatu | |
+| 34 | Dane katalogu są zaszyfrowane DPAPI | |

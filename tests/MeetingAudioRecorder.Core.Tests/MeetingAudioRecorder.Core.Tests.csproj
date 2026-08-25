@@ -30,6 +30,9 @@
     <None Include="..\..\src\MeetingAudioRecorder.App\Views\SettingsWindow.xaml"
           Link="UiContracts\SettingsWindow.xaml"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\MeetingAudioRecorder.App\Views\RecordingsWindow.xaml"
+          Link="UiContracts\RecordingsWindow.xaml"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

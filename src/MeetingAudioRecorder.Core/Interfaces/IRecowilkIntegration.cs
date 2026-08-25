@@ -14,6 +14,7 @@ public interface IRecowilkUploadQueue : IAsyncDisposable
 {
     void Start();
     void Enqueue(RecordingCompletedEventArgs completed);
+    RecordingRetryResult RetryExport(Guid recordingId);
     Task<RecowilkConnectionResult> TestConnectionAsync(string baseUrl, string? candidateKey, CancellationToken cancellationToken = default);
 }
 

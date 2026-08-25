@@ -23,6 +23,7 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
     private readonly RecowilkApiClient _api;
     private readonly string _queueDirectory;
     private readonly IRecowilkQueueProtector _protector;
+    private readonly IRecordingCatalog _catalog;
     private readonly SemaphoreSlim _signal = new(0, 1);
     private readonly SemaphoreSlim _processGate = new(1, 1);
     private readonly CancellationTokenSource _stop = new();
@@ -34,12 +35,18 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
     public RecowilkUploadQueue(IHttpClientFactory httpClientFactory, ISettingsService settings,
         IRecowilkCredentialStore credentials, ILogger<RecowilkUploadQueue> logger)
         : this(httpClientFactory, settings, credentials, logger, AppPaths.RecowilkUploadsDirectory,
-            new DpapiRecowilkQueueProtector())
+            new DpapiRecowilkQueueProtector(), NullRecordingCatalog.Instance)
+    { }
+
+    public RecowilkUploadQueue(IHttpClientFactory httpClientFactory, ISettingsService settings,
+        IRecowilkCredentialStore credentials, ILogger<RecowilkUploadQueue> logger, IRecordingCatalog catalog)
+        : this(httpClientFactory, settings, credentials, logger, AppPaths.RecowilkUploadsDirectory,
+            new DpapiRecowilkQueueProtector(), catalog)
     { }
 
     internal RecowilkUploadQueue(IHttpClientFactory httpClientFactory, ISettingsService settings,
         IRecowilkCredentialStore credentials, ILogger<RecowilkUploadQueue> logger,
-        string queueDirectory, IRecowilkQueueProtector protector)
+        string queueDirectory, IRecowilkQueueProtector protector, IRecordingCatalog? catalog = null)
     {
         _settings = settings;
         _credentials = credentials;
@@ -47,6 +54,7 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
         _api = new RecowilkApiClient(httpClientFactory);
         _queueDirectory = queueDirectory;
         _protector = protector;
+        _catalog = catalog ?? NullRecordingCatalog.Instance;
         _settings.SettingsChanged += OnSettingsChanged;
     }
 
@@ -62,11 +70,54 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         var settings = _settings.Current;
-        if (!settings.RecowilkUploadEnabled || !_credentials.HasKey || completed.Result.OutputPath is null) return;
-        var item = PendingUploadState.From(completed);
-        Save(item);
+        if (completed.Result.OutputPath is null) return;
+        var enabled = settings.RecowilkUploadEnabled && _credentials.HasKey;
+        PendingUploadState? item = null;
+        if (enabled)
+        {
+            item = PendingUploadState.From(completed);
+            Save(item);
+        }
+        TryCatalog(() => _catalog.Upsert(RecordingCatalogEntry.FromCompleted(completed,
+            enabled ? RecordingExportStatus.Queued : RecordingExportStatus.LocalOnly)), completed.Result.RecordingId);
+        if (item is null) return;
         _logger.LogInformation("Dodano nagranie {RecordingId} do kolejki RecoWilk", item.RecordingId);
         Wake();
+    }
+
+    public RecordingRetryResult RetryExport(Guid recordingId)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        var entry = _catalog.Get(recordingId);
+        if (entry is null) return RecordingRetryResult.Failed("Nie znaleziono nagrania w lokalnym katalogu.");
+        if (entry.ExportStatus == RecordingExportStatus.Exported)
+            return RecordingRetryResult.Failed("Nagranie zostało już wysłane do RecoWilk.");
+        if (!File.Exists(entry.AudioPath))
+        {
+            entry.ExportStatus = RecordingExportStatus.MissingFile;
+            _catalog.Upsert(entry);
+            return RecordingRetryResult.Failed("Lokalny plik MP3 nie istnieje.");
+        }
+        var settings = _settings.Current;
+        if (!settings.RecowilkUploadEnabled || !_credentials.HasKey || !TryBaseUri(settings.RecowilkBaseUrl, out _))
+            return RecordingRetryResult.Failed("Włącz eksport RecoWilk i zapisz poprawny URL oraz klucz API.");
+        Directory.CreateDirectory(_queueDirectory);
+        var path = QueuePath(recordingId);
+        PendingUploadState item;
+        try { item = File.Exists(path) ? Load(path) : PendingUploadState.From(entry); }
+        catch (Exception ex) when (ex is IOException or CryptographicException or JsonException or InvalidDataException or FormatException)
+        { if (File.Exists(path)) Quarantine(path); item = PendingUploadState.From(entry); }
+        item.Stage = item.MeetingId is null ? UploadStage.CreatingMeeting
+            : item.UploadId is null ? UploadStage.InitializingUpload : UploadStage.UploadingChunks;
+        item.Attempts = 0;
+        item.NextAttemptAt = DateTimeOffset.UtcNow;
+        item.LastErrorCategory = null;
+        item.LastHttpStatusCode = null;
+        item.LastTraceId = null;
+        Save(item);
+        UpdateCatalog(item, RecordingExportStatus.Queued);
+        Wake();
+        return RecordingRetryResult.Ok();
     }
 
     public async Task<RecowilkConnectionResult> TestConnectionAsync(string baseUrl, string? candidateKey,
@@ -83,12 +134,13 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
         await _processGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var settings = _settings.Current;
-            var key = _credentials.Load();
-            if (!settings.RecowilkUploadEnabled || key is null || !TryBaseUri(settings.RecowilkBaseUrl, out var baseUri)) return;
             Directory.CreateDirectory(_queueDirectory);
             RecoverTemporaryFiles();
             MigrateLegacyFiles();
+            ImportPendingCatalogEntries();
+            var settings = _settings.Current;
+            var key = _credentials.Load();
+            if (!settings.RecowilkUploadEnabled || key is null || !TryBaseUri(settings.RecowilkBaseUrl, out var baseUri)) return;
             if (Interlocked.Exchange(ref _reactivateWaiting, 0) != 0)
                 ReactivateWaitingItems();
             foreach (var path in Directory.EnumerateFiles(_queueDirectory, "*.upload").Order(StringComparer.Ordinal))
@@ -102,11 +154,16 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
                     _logger.LogWarning("Uszkodzony wpis kolejki RecoWilk został przeniesiony do kwarantanny");
                     continue;
                 }
+                EnsureCatalog(item);
                 if (item.NextAttemptAt > DateTimeOffset.UtcNow) continue;
                 try
                 {
                     ValidateLocalFile(item.AudioPath);
+                    item.LastAttemptAt = DateTimeOffset.UtcNow;
+                    UpdateCatalog(item, RecordingExportStatus.Connecting);
                     await ProcessItemAsync(item, baseUri, key, cancellationToken).ConfigureAwait(false);
+                    if (!UpdateCatalog(item, RecordingExportStatus.Exported, exported: true))
+                        throw new IOException("Nie udało się utrwalić potwierdzenia eksportu w katalogu nagrań.");
                     File.Delete(path);
                     _logger.LogInformation("Wysłano nagranie {RecordingId} do RecoWilk", item.RecordingId);
                 }
@@ -115,6 +172,7 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
                 {
                     ApplyFailure(item, ex);
                     Save(item);
+                    UpdateCatalogFailure(item);
                     _logger.LogWarning("Upload {RecordingId} zatrzymany na etapie {Stage}; kategoria {Category}; HTTP {Status}; trace {TraceId}; próba {Attempt}",
                         item.RecordingId, item.Stage, item.LastErrorCategory,
                         ex is RecowilkApiException apiError ? (int)apiError.StatusCode : null,
@@ -140,6 +198,7 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
         {
             item.Stage = UploadStage.CreatingMeeting;
             Save(item);
+            UpdateCatalog(item, RecordingExportStatus.CreatingMeeting);
             var source = item.Source;
             var externalId = $"recorder:{item.RecordingId:D}";
             var result = await _api.CreateMeetingAsync(baseUri, key, new
@@ -180,6 +239,7 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
     {
         item.Stage = UploadStage.InitializingUpload;
         Save(item);
+        UpdateCatalog(item, RecordingExportStatus.InitializingUpload);
         var info = new FileInfo(item.AudioPath);
         var result = await _api.InitUploadAsync(baseUri, key, item.MeetingId!.Value, new
         {
@@ -196,6 +256,7 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
         item.ExpiresAt = result.ExpiresAt;
         item.Stage = UploadStage.UploadingChunks;
         Save(item);
+        UpdateCatalog(item, RecordingExportStatus.Uploading);
     }
 
     private async Task UploadChunksAndCompleteAsync(PendingUploadState item, Uri baseUri, string key, CancellationToken ct)
@@ -205,6 +266,8 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
             item.Stage = UploadStage.UploadingChunks;
             var status = await _api.GetStatusAsync(baseUri, key, item.UploadId!.Value, ct).ConfigureAwait(false);
             var missing = ValidateStatus(item, status);
+            item.UploadedChunks = item.TotalChunks - missing.Length;
+            UpdateCatalog(item, RecordingExportStatus.Uploading);
             var refresh = false;
             await using var stream = new FileStream(item.AudioPath, FileMode.Open, FileAccess.Read, FileShare.Read,
                 Math.Min(item.ChunkSize, DefaultChunkSize), FileOptions.Asynchronous | FileOptions.SequentialScan);
@@ -224,13 +287,22 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
                     var hash = Convert.ToHexString(SHA256.HashData(chunk)).ToLowerInvariant();
                     try { await _api.PutChunkAsync(baseUri, key, item.UploadId.Value, index, chunk, hash, ct).ConfigureAwait(false); }
                     catch (RecowilkApiException ex) when (IsChunkRefresh(ex)) { refresh = true; break; }
+                    item.UploadedChunks++;
+                    UpdateCatalog(item, RecordingExportStatus.Uploading);
                 }
                 finally { ArrayPool<byte>.Shared.Return(rented, true); }
             }
             if (refresh) continue;
             item.Stage = UploadStage.Completing;
             Save(item);
-            try { await _api.CompleteAsync(baseUri, key, item.UploadId.Value, ct).ConfigureAwait(false); return; }
+            UpdateCatalog(item, RecordingExportStatus.Completing);
+            try
+            {
+                var completed = await _api.CompleteAsync(baseUri, key, item.UploadId.Value, ct).ConfigureAwait(false);
+                item.AudioAssetId = completed.AudioAssetId;
+                item.ProcessingJobId = completed.ProcessingJobId;
+                return;
+            }
             catch (RecowilkApiException ex) when (ex.StatusCode == HttpStatusCode.UnprocessableEntity && CodeIs(ex, "upload_incomplete")) { }
         }
         throw new InvalidDataException("Nie udało się uzyskać kompletnego statusu uploadu RecoWilk.");
@@ -299,6 +371,8 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
     {
         item.Attempts++;
         item.LastErrorCategory = Category(exception);
+        item.LastHttpStatusCode = exception is RecowilkApiException apiStatus ? (int)apiStatus.StatusCode : null;
+        item.LastTraceId = exception is RecowilkApiException apiTrace ? apiTrace.TraceId : null;
         if (exception is RecowilkApiException api && api.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
         {
             item.Stage = UploadStage.WaitingForCredentials;
@@ -316,6 +390,82 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
         var delay = requested is { } value && value > TimeSpan.Zero
             ? TimeSpan.FromSeconds(Math.Min(1800, value.TotalSeconds)) : TimeSpan.FromSeconds(seconds);
         item.NextAttemptAt = DateTimeOffset.UtcNow.Add(delay);
+    }
+
+    private void EnsureCatalog(PendingUploadState item)
+    {
+        TryCatalog(() =>
+        {
+            if (_catalog.Get(item.RecordingId) is null)
+                _catalog.Upsert(item.ToCatalogEntry(RecordingExportStatus.Queued));
+        }, item.RecordingId);
+    }
+
+    private void ImportPendingCatalogEntries()
+    {
+        foreach (var path in Directory.EnumerateFiles(_queueDirectory, "*.upload"))
+        {
+            try { EnsureCatalog(Load(path)); }
+            catch (Exception ex) when (ex is IOException or CryptographicException or JsonException or InvalidDataException or FormatException)
+            {
+                Quarantine(path);
+                _logger.LogWarning("Uszkodzony wpis kolejki RecoWilk został przeniesiony do kwarantanny podczas migracji katalogu");
+            }
+        }
+    }
+
+    private void UpdateCatalogFailure(PendingUploadState item)
+    {
+        var status = item.Stage switch
+        {
+            UploadStage.WaitingForCredentials => RecordingExportStatus.WaitingForCredentials,
+            UploadStage.PermanentFailure => File.Exists(item.AudioPath)
+                ? RecordingExportStatus.PermanentFailure : RecordingExportStatus.MissingFile,
+            _ => RecordingExportStatus.RetryScheduled
+        };
+        UpdateCatalog(item, status);
+    }
+
+    private bool UpdateCatalog(PendingUploadState item, RecordingExportStatus status, bool exported = false)
+    {
+        return TryCatalog(() =>
+        {
+            var entry = _catalog.Get(item.RecordingId) ?? item.ToCatalogEntry(status);
+            entry.AudioSizeBytes = File.Exists(item.AudioPath) ? new FileInfo(item.AudioPath).Length : entry.AudioSizeBytes;
+            entry.ExportStatus = status;
+            entry.MeetingId = item.MeetingId;
+            entry.UploadId = item.UploadId;
+            entry.AudioAssetId = item.AudioAssetId;
+            entry.ProcessingJobId = item.ProcessingJobId;
+            entry.UploadedChunks = item.UploadedChunks;
+            entry.TotalChunks = item.TotalChunks;
+            entry.Attempts = item.Attempts;
+            entry.LastAttemptAt = item.LastAttemptAt;
+            entry.NextAttemptAt = status == RecordingExportStatus.RetryScheduled ? item.NextAttemptAt : null;
+            entry.ErrorCategory = item.LastErrorCategory;
+            entry.HttpStatusCode = item.LastHttpStatusCode;
+            entry.TraceId = item.LastTraceId;
+            if (exported)
+            {
+                entry.ExportedAt = DateTimeOffset.UtcNow;
+                entry.UploadedChunks = entry.TotalChunks;
+                entry.ErrorCategory = null;
+                entry.HttpStatusCode = null;
+                entry.TraceId = null;
+                entry.NextAttemptAt = null;
+            }
+            _catalog.Upsert(entry);
+        }, item.RecordingId);
+    }
+
+    private bool TryCatalog(Action action, Guid recordingId)
+    {
+        try { action(); return true; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Nie udało się zaktualizować katalogu nagrania {RecordingId}; kolejka eksportu pozostaje zachowana", recordingId);
+            return false;
+        }
     }
 
     private static bool IsPermanent(Exception exception)
@@ -521,10 +671,16 @@ internal sealed class PendingUploadState
     public int UploadSessionNumber { get; set; } = 1;
     public int ChunkSize { get; set; }
     public int TotalChunks { get; set; }
+    public int UploadedChunks { get; set; }
     public DateTimeOffset? ExpiresAt { get; set; }
     public int Attempts { get; set; }
+    public DateTimeOffset? LastAttemptAt { get; set; }
     public DateTimeOffset NextAttemptAt { get; set; }
     public string? LastErrorCategory { get; set; }
+    public int? LastHttpStatusCode { get; set; }
+    public string? LastTraceId { get; set; }
+    public Guid? AudioAssetId { get; set; }
+    public Guid? ProcessingJobId { get; set; }
     public static PendingUploadState From(RecordingCompletedEventArgs value) => new()
     {
         RecordingId = value.Result.RecordingId,
@@ -535,6 +691,68 @@ internal sealed class PendingUploadState
         Source = value.Session.SourceContext,
         NextAttemptAt = DateTimeOffset.UtcNow
     };
+
+    public static PendingUploadState From(RecordingCatalogEntry value) => new()
+    {
+        RecordingId = value.RecordingId,
+        AudioPath = value.AudioPath,
+        StartedAt = value.StartedAt,
+        StoppedAt = value.StoppedAt,
+        DurationMs = value.DurationMs,
+        Source = new RecordingSourceContext(value.Provider, value.Client, value.ExternalEventId,
+            value.MeetingUrl, value.Title, value.Description, value.ScheduledAt,
+            value.Participants.Select(p => new GoogleMeetingAttendee(p.DisplayName, p.Email,
+                string.Equals(p.Role, "Organizer", StringComparison.OrdinalIgnoreCase))).ToArray()),
+        MeetingId = value.MeetingId,
+        UploadId = value.UploadId,
+        AudioAssetId = value.AudioAssetId,
+        ProcessingJobId = value.ProcessingJobId,
+        TotalChunks = value.TotalChunks,
+        UploadedChunks = value.UploadedChunks,
+        NextAttemptAt = DateTimeOffset.UtcNow
+    };
+
+    public RecordingCatalogEntry ToCatalogEntry(RecordingExportStatus status) => new()
+    {
+        RecordingId = RecordingId,
+        AudioPath = AudioPath,
+        AudioSizeBytes = File.Exists(AudioPath) ? new FileInfo(AudioPath).Length : 0,
+        StartedAt = StartedAt,
+        StoppedAt = StoppedAt,
+        DurationMs = DurationMs,
+        Title = string.IsNullOrWhiteSpace(Source?.Title) ? Path.GetFileNameWithoutExtension(AudioPath) : Source.Title,
+        Description = Source?.Description,
+        ScheduledAt = Source?.ScheduledAt,
+        Provider = Source?.Provider ?? "ManualRecorder",
+        Client = Source?.Client ?? "MeetingAudioRecorder",
+        ExternalEventId = Source?.ExternalEventId,
+        MeetingUrl = Source?.MeetingUrl,
+        Participants = Source?.Participants.Select(p => new RecordingCatalogParticipant(p.DisplayName, p.Email,
+            p.IsOrganizer ? "Organizer" : "Attendee")).ToArray() ?? [],
+        ExportStatus = status,
+        MeetingId = MeetingId,
+        UploadId = UploadId,
+        AudioAssetId = AudioAssetId,
+        ProcessingJobId = ProcessingJobId,
+        UploadedChunks = UploadedChunks,
+        TotalChunks = TotalChunks,
+        Attempts = Attempts,
+        LastAttemptAt = LastAttemptAt,
+        NextAttemptAt = NextAttemptAt,
+        ErrorCategory = LastErrorCategory,
+        HttpStatusCode = LastHttpStatusCode,
+        TraceId = LastTraceId
+    };
+}
+
+internal sealed class NullRecordingCatalog : IRecordingCatalog
+{
+    public static NullRecordingCatalog Instance { get; } = new();
+    public event EventHandler<RecordingCatalogChangedEventArgs>? Changed { add { } remove { } }
+    public IReadOnlyList<RecordingCatalogEntry> List() => [];
+    public RecordingCatalogEntry? Get(Guid recordingId) => null;
+    public void Upsert(RecordingCatalogEntry entry) { }
+    public void ReconcileRecordingsDirectory(string directory) { }
 }
 internal sealed class LegacyPendingUpload
 {

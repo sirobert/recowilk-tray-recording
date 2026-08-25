@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text;
 using MeetingAudioRecorder.Core.Interfaces;
 using MeetingAudioRecorder.Core.Models;
@@ -254,6 +255,79 @@ public sealed class RecowilkUploadFlowTests : IDisposable
             1000, Guid.Parse("55555555-5555-5555-5555-555555555555"), chunkSize, totalChunks));
     }
 
+    [Fact]
+    public async Task Existing_pending_upload_is_migrated_to_catalog_while_export_is_disabled()
+    {
+        var audio = await WriteAudioAsync(1000);
+        var legacyPath = Path.Combine(_directory, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json");
+        await File.WriteAllTextAsync(legacyPath, System.Text.Json.JsonSerializer.Serialize(new
+        {
+            recordingId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            audioPath = audio,
+            startedAt = DateTimeOffset.Parse("2026-08-25T10:01:00Z"),
+            durationMs = 1000,
+            source = new { provider = "GoogleMeet", client = "MeetingAudioRecorder", title = "Planowanie", participants = Array.Empty<object>() }
+        }));
+        var calls = 0;
+        var catalog = new ProtectedFileRecordingCatalog(Path.Combine(_directory, "catalog"), new CatalogProtector());
+        await using var queue = new RecowilkUploadQueue(new Factory(new HttpClient(new ScriptedHandler(_ =>
+        {
+            calls++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError));
+        }))), new MutableSettings("https://minuteo.example", enabled: false), new Credentials("secret-key"),
+            NullLogger<RecowilkUploadQueue>.Instance, _directory, new PassthroughProtector(), catalog);
+
+        await queue.ProcessPendingOnceAsync();
+
+        var imported = Assert.Single(catalog.List());
+        Assert.Equal("Planowanie", imported.Title);
+        Assert.Equal(RecordingExportStatus.Queued, imported.ExportStatus);
+        Assert.Equal(0, calls);
+        Assert.False(File.Exists(legacyPath));
+        Assert.Single(Directory.EnumerateFiles(_directory, "*.upload"));
+    }
+
+    [Fact]
+    public async Task Server_failure_is_visible_and_manual_retry_reuses_recording_identity()
+    {
+        var audio = await WriteAudioAsync(1000);
+        var catalogDirectory = Path.Combine(_directory, "catalog");
+        var catalog = new ProtectedFileRecordingCatalog(catalogDirectory, new CatalogProtector());
+        var failMeeting = true;
+        var externalIds = new List<string>();
+        var handler = new ScriptedHandler(async request =>
+        {
+            if (request.RequestUri!.AbsolutePath == "/api/v1/ingest/meetings")
+            {
+                externalIds.Add((await request.Content!.ReadFromJsonAsync<Dictionary<string, object>>())!["externalId"].ToString()!);
+                if (failMeeting) return Problem(HttpStatusCode.InternalServerError, "server_error");
+            }
+            return StandardResponse(request);
+        });
+        await using var queue = new RecowilkUploadQueue(new Factory(new HttpClient(handler)),
+            new MutableSettings("https://minuteo.example"), new Credentials("secret-key"),
+            NullLogger<RecowilkUploadQueue>.Instance, _directory, new PassthroughProtector(), catalog);
+        queue.Enqueue(Completed(audio));
+
+        await queue.ProcessPendingOnceAsync();
+
+        var failed = Assert.Single(catalog.List());
+        Assert.Equal(RecordingExportStatus.RetryScheduled, failed.ExportStatus);
+        Assert.Equal(500, failed.HttpStatusCode);
+        Assert.Equal("trace-test", failed.TraceId);
+        failMeeting = false;
+
+        var retry = queue.RetryExport(failed.RecordingId);
+        await queue.ProcessPendingOnceAsync();
+
+        Assert.True(retry.Success);
+        var exported = Assert.Single(catalog.List());
+        Assert.Equal(RecordingExportStatus.Exported, exported.ExportStatus);
+        Assert.Equal(Guid.Parse("44444444-4444-4444-4444-444444444444"), exported.MeetingId);
+        Assert.All(externalIds, id => Assert.Equal("recorder:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", id));
+        Assert.True(File.Exists(audio));
+    }
+
     private async Task<string> WriteAudioAsync(int length)
     {
         Directory.CreateDirectory(_directory);
@@ -352,11 +426,11 @@ public sealed class RecowilkUploadFlowTests : IDisposable
         public void Clear() { }
     }
 
-    private sealed class MutableSettings(string url) : ISettingsService
+    private sealed class MutableSettings(string url, bool enabled = true) : ISettingsService
     {
         private readonly AppSettings _settings = new()
         {
-            RecowilkUploadEnabled = true,
+            RecowilkUploadEnabled = enabled,
             RecowilkBaseUrl = url
         };
         public AppSettings Current => _settings;
@@ -372,6 +446,12 @@ public sealed class RecowilkUploadFlowTests : IDisposable
     }
 
     private sealed class PassthroughProtector : IRecowilkQueueProtector
+    {
+        public byte[] Protect(byte[] value) => System.Text.Encoding.UTF8.GetBytes(Convert.ToBase64String(value));
+        public byte[] Unprotect(byte[] value) => Convert.FromBase64String(System.Text.Encoding.UTF8.GetString(value));
+    }
+
+    private sealed class CatalogProtector : IRecordingCatalogProtector
     {
         public byte[] Protect(byte[] value) => System.Text.Encoding.UTF8.GetBytes(Convert.ToBase64String(value));
         public byte[] Unprotect(byte[] value) => Convert.FromBase64String(System.Text.Encoding.UTF8.GetString(value));

@@ -16,6 +16,7 @@ public partial class TrayViewModel : ObservableObject
     private readonly INotificationService _notificationService;
     private readonly ILogger<TrayViewModel> _logger;
     private readonly Action _openSettings;
+    private readonly Action _openRecordings;
     private string? _lastOutputPath;
     private bool _isExiting;
 
@@ -30,13 +31,15 @@ public partial class TrayViewModel : ObservableObject
         ISettingsService settingsService,
         INotificationService notificationService,
         ILogger<TrayViewModel> logger,
-        Action openSettings)
+        Action openSettings,
+        Action openRecordings)
     {
         _coordinator = coordinator;
         _settingsService = settingsService;
         _notificationService = notificationService;
         _logger = logger;
         _openSettings = openSettings;
+        _openRecordings = openRecordings;
 
         _coordinator.StateChanged += OnStateChanged;
         _coordinator.DurationUpdated += OnDuration;
@@ -102,6 +105,9 @@ public partial class TrayViewModel : ObservableObject
 
     [RelayCommand]
     private void OpenSettings() => _openSettings();
+
+    [RelayCommand]
+    private void OpenRecordings() => _openRecordings();
 
     [RelayCommand]
     private void OpenRecordingsFolder()

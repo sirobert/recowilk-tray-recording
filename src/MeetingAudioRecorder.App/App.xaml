@@ -16,6 +16,7 @@
                     <MenuItem Header="Zatrzymaj nagrywanie" Command="{Binding StopRecordingCommand}"
                               IsEnabled="{Binding CanStop}"/>
                     <Separator/>
+                    <MenuItem Header="Nagrania i eksport" Command="{Binding OpenRecordingsCommand}"/>
                     <MenuItem Header="Ustawienia" Command="{Binding OpenSettingsCommand}"/>
                     <MenuItem Header="Otwórz folder nagrań" Command="{Binding OpenRecordingsFolderCommand}"/>
                     <MenuItem Header="Pokaż ostatnie nagranie" Command="{Binding ShowLastRecordingCommand}"/>
