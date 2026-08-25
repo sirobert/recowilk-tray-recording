@@ -19,6 +19,8 @@ public sealed class AppSettings
     public string FileNameFormat { get; set; } = "Nagranie_yyyy-MM-dd_HH-mm-ss.mp3";
     public bool ConsentAcknowledged { get; set; }
     public bool GoogleMeetAutomationEnabled { get; set; }
+    public bool RecowilkUploadEnabled { get; set; }
+    public string RecowilkBaseUrl { get; set; } = string.Empty;
 
     public static AppSettings CreateDefault()
     {
@@ -43,7 +45,9 @@ public sealed class AppSettings
             OpenFolderAfterRecording = false,
             FileNameFormat = "Nagranie_yyyy-MM-dd_HH-mm-ss.mp3",
             ConsentAcknowledged = false,
-            GoogleMeetAutomationEnabled = false
+            GoogleMeetAutomationEnabled = false,
+            RecowilkUploadEnabled = false,
+            RecowilkBaseUrl = string.Empty
         };
     }
 
@@ -62,6 +66,8 @@ public sealed class AppSettings
         OpenFolderAfterRecording = OpenFolderAfterRecording,
         FileNameFormat = FileNameFormat,
         ConsentAcknowledged = ConsentAcknowledged,
-        GoogleMeetAutomationEnabled = GoogleMeetAutomationEnabled
+        GoogleMeetAutomationEnabled = GoogleMeetAutomationEnabled,
+        RecowilkUploadEnabled = RecowilkUploadEnabled,
+        RecowilkBaseUrl = RecowilkBaseUrl
     };
 }

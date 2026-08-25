@@ -59,4 +59,23 @@ public class SettingsWindowXamlTests
         Assert.Contains(commands, value => value!.Contains("PrepareChromeExtensionCommand", StringComparison.Ordinal));
         Assert.Contains(commands, value => value!.Contains("PrepareEdgeExtensionCommand", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void Recowilk_secret_is_masked_and_data_scope_is_disclosed()
+    {
+        var xamlPath = Path.Combine(AppContext.BaseDirectory, "UiContracts", "SettingsWindow.xaml");
+        var document = XDocument.Load(xamlPath);
+
+        var secret = document.Descendants().Single(element =>
+            element.Name.LocalName == "PasswordBox"
+            && element.Attribute(XName.Get("Name", "http://schemas.microsoft.com/winfx/2006/xaml"))?.Value
+                == "RecowilkApiKeyBox");
+        var allText = string.Join(" ", document.Descendants()
+            .Select(element => element.Attribute("Text")?.Value ?? element.Attribute("Content")?.Value));
+
+        Assert.NotNull(secret.Attribute("PasswordChanged"));
+        Assert.Contains("tytuł", allText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("opis", allText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("uczestnik", allText, StringComparison.OrdinalIgnoreCase);
+    }
 }

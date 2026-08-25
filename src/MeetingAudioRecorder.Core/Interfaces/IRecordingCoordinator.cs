@@ -8,6 +8,7 @@ public interface IRecordingCoordinator : IAsyncDisposable
     event EventHandler<TimeSpan>? DurationUpdated;
     event EventHandler<AudioLevelEventArgs>? MicrophoneLevelChanged;
     event EventHandler<AudioLevelEventArgs>? LoopbackLevelChanged;
+    event EventHandler<RecordingCompletedEventArgs>? RecordingCompleted;
 
     AppRecordingState State { get; }
     TimeSpan CurrentDuration { get; }

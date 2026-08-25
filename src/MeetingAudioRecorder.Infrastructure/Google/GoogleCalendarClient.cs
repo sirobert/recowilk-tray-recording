@@ -80,10 +80,10 @@ public sealed class GoogleCalendarClient : IGoogleCalendarClient
             new("showDeleted", "false"),
             new("orderBy", "startTime"),
             new("maxResults", "50"),
-            new("maxAttendees", "1"),
+            new("maxAttendees", "250"),
             new("timeMin", from.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)),
             new("timeMax", to.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)),
-            new("fields", "nextPageToken,items(id,status,summary,start/dateTime,end/dateTime,hangoutLink,conferenceData/entryPoints,attendees(self,responseStatus))")
+            new("fields", "nextPageToken,items(id,status,summary,description,start/dateTime,end/dateTime,hangoutLink,conferenceData/entryPoints,attendees(displayName,email,self,organizer,responseStatus))")
         };
         if (pageToken is not null)
             parameters.Add(new("pageToken", pageToken));
@@ -118,7 +118,15 @@ public sealed class GoogleCalendarClient : IGoogleCalendarClient
             startsAt,
             endsAt,
             meetingUri!,
-            meetingCode);
+            meetingCode)
+        {
+            Description = string.IsNullOrWhiteSpace(item.Description) ? null : item.Description.Trim(),
+            Attendees = item.Attendees?.Where(a => !string.IsNullOrWhiteSpace(a.DisplayName) || !string.IsNullOrWhiteSpace(a.Email))
+                .Select(a => new GoogleMeetingAttendee(
+                    string.IsNullOrWhiteSpace(a.DisplayName) ? a.Email!.Trim() : a.DisplayName.Trim(),
+                    string.IsNullOrWhiteSpace(a.Email) ? null : a.Email.Trim().ToLowerInvariant(),
+                    a.Organizer)).ToArray() ?? [],
+        };
         return true;
     }
 
@@ -157,6 +165,7 @@ public sealed class GoogleCalendarClient : IGoogleCalendarClient
         public string? Id { get; init; }
         public string? Status { get; init; }
         public string? Summary { get; init; }
+        public string? Description { get; init; }
         public CalendarDateTime? Start { get; init; }
         public CalendarDateTime? End { get; init; }
         public string? HangoutLink { get; init; }
@@ -184,6 +193,9 @@ public sealed class GoogleCalendarClient : IGoogleCalendarClient
     private sealed class CalendarAttendee
     {
         public bool Self { get; init; }
+        public bool Organizer { get; init; }
+        public string? DisplayName { get; init; }
+        public string? Email { get; init; }
         public string? ResponseStatus { get; init; }
     }
 }

@@ -4,6 +4,7 @@ using MeetingAudioRecorder.Infrastructure.Google;
 using MeetingAudioRecorder.Infrastructure.IO;
 using MeetingAudioRecorder.Infrastructure.Logging;
 using MeetingAudioRecorder.Infrastructure.Recovery;
+using MeetingAudioRecorder.Infrastructure.Recowilk;
 using MeetingAudioRecorder.Infrastructure.Settings;
 using MeetingAudioRecorder.Infrastructure.SingleInstance;
 using MeetingAudioRecorder.Infrastructure.Startup;
@@ -32,6 +33,9 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddHttpClient<IGoogleCalendarClient, GoogleCalendarClient>();
         services.AddHttpClient<IGoogleMeetClient, GoogleMeetClient>();
         services.AddSingleton<IActiveMeetLinkProvider, FileActiveMeetLinkProvider>();
+        services.AddSingleton<IRecowilkCredentialStore, ProtectedFileRecowilkCredentialStore>();
+        services.AddHttpClient("recowilk", client => client.Timeout = TimeSpan.FromMinutes(10));
+        services.AddSingleton<IRecowilkUploadQueue, RecowilkUploadQueue>();
         return services;
     }
 }

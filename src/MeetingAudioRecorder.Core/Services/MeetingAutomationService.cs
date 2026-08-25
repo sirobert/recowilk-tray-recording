@@ -1,3 +1,4 @@
+using System.Net;
 using MeetingAudioRecorder.Core.Interfaces;
 using MeetingAudioRecorder.Core.Models;
 using Microsoft.Extensions.Logging;
@@ -274,19 +275,33 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
         string accountUserId,
         CancellationToken cancellationToken)
     {
-        if (_trackedMeeting is not null)
+        var trackedMeeting = _trackedMeeting;
+        if (trackedMeeting is not null)
         {
-            var trackedPresence = await _meetClient.GetCurrentUserPresenceAsync(
-                _trackedMeeting.MeetingCode,
-                accountUserId,
-                cancellationToken).ConfigureAwait(false);
-            if (trackedPresence.Status is MeetingPresenceStatus.Present or MeetingPresenceStatus.Unknown
-                || HasActiveRecording())
+            try
             {
-                return (_trackedMeeting, trackedPresence.Status);
-            }
+                var trackedPresence = await _meetClient.GetCurrentUserPresenceAsync(
+                    trackedMeeting.MeetingCode,
+                    accountUserId,
+                    cancellationToken).ConfigureAwait(false);
+                if (trackedPresence.Status is MeetingPresenceStatus.Present or MeetingPresenceStatus.Unknown
+                    || HasActiveRecording())
+                {
+                    return (trackedMeeting, trackedPresence.Status);
+                }
 
-            _trackedMeeting = null;
+                _trackedMeeting = null;
+            }
+            catch (HttpRequestException ex) when (
+                !HasActiveRecording() && IsInaccessibleTrackedMeeting(ex))
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Śledzone spotkanie {MeetingCode} nie jest już dostępne ({StatusCode}); sprawdzanie nowych linków jest kontynuowane",
+                    trackedMeeting.MeetingCode,
+                    ex.StatusCode);
+                _trackedMeeting = null;
+            }
         }
 
         var now = _timeProvider.GetUtcNow();
@@ -370,6 +385,9 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
                     .ConfigureAwait(false);
                 var session = _recordingCoordinator.CurrentSession
                               ?? throw new InvalidOperationException("Koordynator nie udostępnił rozpoczętej sesji.");
+                session.SourceContext = new RecordingSourceContext(
+                    "GoogleMeet", "MeetingAudioRecorder", meeting.EventId, meeting.MeetingUri,
+                    meeting.Title, meeting.Description, meeting.StartsAt, meeting.Attendees);
                 _controller.ConfirmAutomaticRecordingStarted(meeting.EventId, session.RecordingId);
                 _trackedMeeting = meeting;
                 _notificationService.ShowInfo(
@@ -508,6 +526,9 @@ public sealed class MeetingAutomationService : IMeetingAutomationService
            or InvalidDataException
            or System.Text.Json.JsonException
            || exception is OperationCanceledException && !cancellationToken.IsCancellationRequested;
+
+    private static bool IsInaccessibleTrackedMeeting(HttpRequestException exception)
+        => exception.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound;
 
     private static string BuildDeviceSelectionReason(BrowserAudioDeviceSelection selection)
         => selection.BrowserProcessName is null

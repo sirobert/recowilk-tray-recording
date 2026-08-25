@@ -182,6 +182,29 @@
                     </StackPanel>
                 </GroupBox>
 
+                <GroupBox Header="RecoWilk — automatyczne wysyłanie">
+                    <StackPanel>
+                        <CheckBox Content="Po zapisaniu MP3 automatycznie wyślij spotkanie do RecoWilk"
+                                  IsChecked="{Binding RecowilkUploadEnabled}" Margin="0,0,0,8"/>
+                        <TextBlock Text="Adres API (HTTPS)"/>
+                        <TextBox Text="{Binding RecowilkBaseUrl, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,4,0,8" ToolTip="Np. https://minuteo.example.com"/>
+                        <TextBlock Text="Klucz API (pozostaw pusty, aby zachować zapisany)"/>
+                        <PasswordBox x:Name="RecowilkApiKeyBox" PasswordChanged="RecowilkApiKey_Changed"
+                                     Margin="0,4,0,8"/>
+                        <WrapPanel>
+                            <Button Content="Sprawdź połączenie" Command="{Binding TestRecowilkCommand}"
+                                    Padding="12,6" Margin="0,0,8,0"/>
+                            <Button Content="Usuń zapisany klucz" Command="{Binding ClearRecowilkKeyCommand}"
+                                    Padding="12,6" Margin="0,0,8,0"/>
+                            <TextBlock Text="{Binding RecowilkStatus}" Style="{StaticResource Hint}"
+                                       VerticalAlignment="Center"/>
+                        </WrapPanel>
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0"
+                                   Text="Klucz i oczekująca kolejka są szyfrowane przez Windows DPAPI. Po włączeniu wysyłane są MP3 oraz dostępne metadane: tytuł, opis, terminy, źródło/link i uczestnicy. MP3 pozostaje lokalnie; aplikacja wysyła consentConfirmed=false."/>
+                    </StackPanel>
+                </GroupBox>
+
                 <!-- Opcje -->
                 <GroupBox Header="Opcje">
                     <StackPanel>

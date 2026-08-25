@@ -18,6 +18,23 @@ public sealed class RecordingSessionInfo
     public long MicrophoneStartOffsetTicks { get; set; }
     public long LoopbackStartOffsetTicks { get; set; }
     public string? ErrorMessage { get; set; }
+    public RecordingSourceContext? SourceContext { get; set; }
+}
+
+public sealed record RecordingSourceContext(
+    string Provider,
+    string Client,
+    string? ExternalEventId,
+    string? MeetingUrl,
+    string Title,
+    string? Description,
+    DateTimeOffset? ScheduledAt,
+    IReadOnlyList<GoogleMeetingAttendee> Participants);
+
+public sealed class RecordingCompletedEventArgs(RecordingResult result, RecordingSessionInfo session) : EventArgs
+{
+    public RecordingResult Result { get; } = result;
+    public RecordingSessionInfo Session { get; } = session;
 }
 
 /// <summary>

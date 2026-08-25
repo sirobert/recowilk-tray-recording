@@ -65,6 +65,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
     public event EventHandler<TimeSpan>? DurationUpdated;
     public event EventHandler<AudioLevelEventArgs>? MicrophoneLevelChanged;
     public event EventHandler<AudioLevelEventArgs>? LoopbackLevelChanged;
+    public event EventHandler<RecordingCompletedEventArgs>? RecordingCompleted;
 
     public AppRecordingState State => _stateMachine.State;
     public TimeSpan CurrentDuration => _durationWatch?.Elapsed ?? TimeSpan.Zero;
@@ -300,6 +301,7 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
                     "Zapisano nagranie {Id}, czas={Duration}, plik={Path}",
                     session.RecordingId, result.Duration, result.OutputPath);
                 _manifestStore.Delete(session.RecordingId);
+                RaiseRecordingCompleted(result, session);
             }
             else
             {
@@ -322,6 +324,17 @@ public sealed class RecordingCoordinator : IRecordingCoordinator
             _recordingCts?.Dispose();
             _recordingCts = null;
             _gate.Release();
+        }
+    }
+
+    private void RaiseRecordingCompleted(RecordingResult result, RecordingSessionInfo session)
+    {
+        var handlers = RecordingCompleted?.GetInvocationList();
+        if (handlers is null) return;
+        foreach (var item in handlers)
+        {
+            try { ((EventHandler<RecordingCompletedEventArgs>)item)(this, new(result, session)); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Odbiorca zakończenia nagrania zgłosił błąd"); }
         }
     }
 

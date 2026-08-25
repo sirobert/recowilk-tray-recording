@@ -61,7 +61,7 @@ Zapisz w raporcie: wersję Windows i aplikacji, typ konta Google, identyfikatory
 
 ### 5B. R-014 — Meeting Orgniazer Gemini i link bez Calendar
 
-1. Zainstaluj aplikację 1.2.2. W Ustawieniach kliknij instalację rozszerzenia dla Chrome; potwierdź, że otwierają się `chrome://extensions` i folder pakietu, a ścieżka jest w schowku.
+1. Zainstaluj aplikację 1.2.6. W Ustawieniach kliknij instalację rozszerzenia dla Chrome; potwierdź, że otwierają się `chrome://extensions` i folder pakietu, a ścieżka jest w schowku.
 2. Włącz Tryb dewelopera, wybierz **Załaduj rozpakowane** i wskaż folder `MeetingOrgniazerGemini`. Oczekiwane ID: `eljjpmlmlnjjpjlnhiilfclkhoecdlij`; brak błędu Native Messaging.
 3. Połącz w aplikacji konto Google, włącz automatykę i upewnij się, że w Calendar nie ma testowego spotkania.
 4. Otwórz otrzymany link `https://meet.google.com/tcu-ysxp-tvw?...`, ale nie klikaj **Dołącz teraz**. Oczekiwane: brak nagrywania.
@@ -71,6 +71,7 @@ Zapisz w raporcie: wersję Windows i aplikacji, typ konta Google, identyfikatory
 8. Powtórz dla Edge. Następnie otwórz dwa różne linki Meet i dołącz tylko do jednego; oczekiwane: aplikacja sprawdza oba kody, ale uruchamia jedną sesję dla konferencji z aktywnym użytkownikiem.
 9. Przejrzyj `%LOCALAPPDATA%\MeetingAudioRecorder\Browser\active-meet.json`. Oczekiwane: wyłącznie wersja, czas, kod spotkania i nazwa przeglądarki; brak URL query, tokenów, e-maili, tytułów kart i list uczestników.
 10. Po automatycznym starcie zatrzymaj nagranie ręcznie, opuść pierwsze spotkanie i dołącz do innego aktywnego linku bez restartowania aplikacji. Oczekiwane: po potwierdzeniu nieobecności w poprzednim Meet aplikacja sprawdza nowy kod i uruchamia drugie nagranie automatycznie; podczas aktywnego nagrania nie przełącza śledzonego spotkania.
+11. Powtórz krok 10 po spotkaniu, do którego Meet API zaczyna zwracać `403` albo `404`. Oczekiwane: po zakończeniu poprzedniego nagrania aplikacja porzuca niedostępny kod, sprawdza świeży link rozszerzenia i uruchamia nowe nagranie bez restartu; `403/404` podczas trwającego nagrania nie może go zatrzymać.
 
 ### 5C. R-016 — cykl życia Native Messaging hosta
 
@@ -224,6 +225,23 @@ Zapisz w raporcie: wersję Windows i aplikacji, typ konta Google, identyfikatory
 5. Przejrzyj log i potwierdź, że nie zawiera wartości próbek, fragmentów audio ani transkrypcji.
 6. Do raportu sprzętowego dołącz wersję Windows, urządzenia, endpointy, formaty i wynik checklisty — bez dołączania treści nagrania, jeśli nie jest potrzebna.
 
+## 17. R-017 — RecoWilk i wznowienie uploadu
+
+1. W RecoWilk jako Owner utwórz klucz w `Administracja → Integracje`, wybierając właściciela i typ spotkania; skopiuj sekret z jednorazowego okna.
+2. W Recorderze ustaw adres HTTPS, wklej sekret i użyj „Sprawdź połączenie”. Włącz automatyczne wysyłanie i zapisz.
+3. Nagraj krótkie spotkanie Google Meet. Po publikacji MP3 sprawdź w RecoWilk tytuł, opis, źródło, terminy i uczestników oraz uruchomiony job.
+4. Potwierdź, że lokalny MP3 nadal istnieje i log nie zawiera klucza, opisu ani adresów uczestników.
+5. Przy kolejnym dłuższym nagraniu odłącz sieć w połowie uploadu, zamknij Recorder i uruchom ponownie po przywróceniu sieci.
+6. Oczekiwane: istnieje tylko jedno spotkanie, wysyłane są tylko brakujące fragmenty, a kolejka znika dopiero po odpowiedzi `complete`.
+7. Rotuj klucz w panelu. Stara wartość ma zwracać 401; po wklejeniu nowej wartość test połączenia i kolejny upload przechodzą.
+8. Powtórz po wygaśnięciu i unieważnieniu klucza; MP3 pozostaje lokalnie, a wpis kolejki czeka na poprawną konfigurację.
+9. Podczas oczekującego uploadu zmień sam klucz na inny klucz tej samej organizacji i właściciela. Oczekiwane: istniejące `meetingId`/`uploadId` są wznawiane, bez drugiego spotkania.
+10. Następnie zmień bazowy URL, organizację albo efektywnego właściciela. Oczekiwane: klient nie wysyła starych identyfikatorów do nowego celu, rozpoczyna od tego samego `externalId` i tworzy nową sesję właściwą dla celu.
+11. Wymuś `410 upload_expired`. Oczekiwane: `meetingId` pozostaje, `uploadId` jest zerowany, numer sesji rośnie, a nowy klucz idempotencji kończy się kolejnym numerem.
+12. Wymuś `422 upload_incomplete` przy finalizacji. Oczekiwane: klient wraca do statusu, dosyła brakujące fragmenty i ponawia finalizację.
+13. Sprawdź `%LOCALAPPDATA%\MeetingAudioRecorder\Uploads` podczas oczekiwania. Jawne pliki nie mogą zawierać klucza, tytułu, opisu, URL ani danych uczestników. Uszkodzony wpis ma trafić do kwarantanny i nie blokować następnego nagrania.
+14. Zamknij aplikację podczas PUT, uruchom ją ponownie i sprawdź, że nie ma wyjątku shutdownu, duplikatu assetu ani utraty wpisu kolejki.
+
 ## Checklist kryteriów odbioru
 
 | # | Kryterium | OK? |
@@ -254,3 +272,7 @@ Zapisz w raporcie: wersję Windows i aplikacji, typ konta Google, identyfikatory
 | 24 | Brak detekcji używa zapisanych urządzeń bez zmiany ustawień | |
 | 25 | Link Meet bez Calendar uruchamia nagranie dopiero po faktycznym dołączeniu | |
 | 26 | Rozszerzenie komunikuje się wyłącznie przez dozwolony lokalny Native Host | |
+| 27 | Klucz RecoWilk jest zapisany przez DPAPI i nie występuje w settings.json/logach | |
+| 28 | Restart i utrata sieci wznawiają wyłącznie brakujące fragmenty | |
+| 29 | Retry tworzy jedno spotkanie i jeden finalny asset | |
+| 30 | Wysłanie nie usuwa lokalnego MP3 | |

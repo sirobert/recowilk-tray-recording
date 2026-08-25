@@ -17,10 +17,14 @@ public sealed class GoogleWorkspaceClientTests
                   "id": "accepted",
                   "status": "confirmed",
                   "summary": "Daily",
+                  "description": "Opis spotkania",
                   "start": { "dateTime": "2026-08-08T10:00:00+02:00" },
                   "end": { "dateTime": "2026-08-08T10:30:00+02:00" },
                   "hangoutLink": "https://meet.google.com/abc-defg-hij?authuser=0",
-                  "attendees": [{ "self": true, "responseStatus": "accepted" }]
+                  "attendees": [
+                    { "self": true, "organizer": true, "displayName": "Robert", "email": "ROBERT@example.com", "responseStatus": "accepted" },
+                    { "displayName": "Anna", "email": "anna@example.com", "responseStatus": "accepted" }
+                  ]
                 },
                 {
                   "id": "declined",
@@ -63,8 +67,12 @@ public sealed class GoogleWorkspaceClientTests
         Assert.Equal("Bearer", handler.Requests[0].AuthorizationScheme);
         Assert.Equal("test-access-token", handler.Requests[0].AuthorizationParameter);
         Assert.Contains("singleEvents=true", handler.Requests[0].RequestUri!.Query, StringComparison.Ordinal);
-        Assert.Contains("maxAttendees=1", handler.Requests[0].RequestUri!.Query, StringComparison.Ordinal);
-        Assert.DoesNotContain("description", handler.Requests[0].RequestUri!.Query, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("maxAttendees=250", handler.Requests[0].RequestUri!.Query, StringComparison.Ordinal);
+        Assert.Contains("description", handler.Requests[0].RequestUri!.Query, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Opis spotkania", meeting.Description);
+        Assert.Equal(2, meeting.Attendees.Count);
+        Assert.Equal("robert@example.com", meeting.Attendees[0].Email);
+        Assert.True(meeting.Attendees[0].IsOrganizer);
     }
 
     [Fact]

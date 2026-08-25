@@ -21,6 +21,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IGoogleAuthorizationService _googleAuthorizationService;
     private readonly IMeetingAutomationService _meetingAutomationService;
     private readonly IBrowserExtensionInstaller _browserExtensionInstaller;
+    private readonly IRecowilkCredentialStore _recowilkCredentialStore;
+    private readonly IRecowilkUploadQueue _recowilkUploadQueue;
     private readonly LevelMeterService _levelMeter;
     private readonly ILogger<SettingsViewModel> _logger;
 
@@ -53,6 +55,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _googleConnectionStatus = "Niepołączono z Google.";
     [ObservableProperty] private string _googleAutomationStatus = "Automatyczne nagrywanie jest wyłączone.";
     [ObservableProperty] private string _browserExtensionStatus = "Rozszerzenie nie zostało jeszcze przygotowane.";
+    [ObservableProperty] private bool _recowilkUploadEnabled;
+    [ObservableProperty] private string _recowilkBaseUrl = string.Empty;
+    [ObservableProperty] private string _recowilkApiKey = string.Empty;
+    [ObservableProperty] private string _recowilkStatus = "Integracja jest wyłączona.";
+    [ObservableProperty] private bool _isRecowilkBusy;
 
     public int[] AvailableBitrates { get; } = [128, 192, 256, 320];
     public int[] AvailableSampleRates { get; } = [44100, 48000];
@@ -76,6 +83,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IGoogleAuthorizationService googleAuthorizationService,
         IMeetingAutomationService meetingAutomationService,
         IBrowserExtensionInstaller browserExtensionInstaller,
+        IRecowilkCredentialStore recowilkCredentialStore,
+        IRecowilkUploadQueue recowilkUploadQueue,
         LevelMeterService levelMeter,
         ILogger<SettingsViewModel> logger)
     {
@@ -87,6 +96,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _googleAuthorizationService = googleAuthorizationService;
         _meetingAutomationService = meetingAutomationService;
         _browserExtensionInstaller = browserExtensionInstaller;
+        _recowilkCredentialStore = recowilkCredentialStore;
+        _recowilkUploadQueue = recowilkUploadQueue;
         _levelMeter = levelMeter;
         _logger = logger;
 
@@ -115,6 +126,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         HotkeyShift = s.Hotkey.Shift;
         HotkeyWindows = s.Hotkey.Windows;
         GoogleMeetAutomationEnabled = s.GoogleMeetAutomationEnabled;
+        RecowilkUploadEnabled = s.RecowilkUploadEnabled;
+        RecowilkBaseUrl = s.RecowilkBaseUrl;
+        RecowilkApiKey = string.Empty;
+        RecowilkStatus = _recowilkCredentialStore.HasKey
+            ? "Klucz API jest bezpiecznie zapisany dla bieżącego konta Windows."
+            : "Brak zapisanego klucza API.";
         GoogleAutomationStatus = _meetingAutomationService.Status.Message;
         OnPropertyChanged(nameof(HotkeyPreview));
     }
@@ -177,6 +194,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             settings.OpenFolderAfterRecording = OpenFolderAfterRecording;
             settings.FileNameFormat = FileNameFormat;
             settings.GoogleMeetAutomationEnabled = GoogleMeetAutomationEnabled;
+            settings.RecowilkUploadEnabled = RecowilkUploadEnabled;
+            settings.RecowilkBaseUrl = RecowilkBaseUrl.Trim().TrimEnd('/');
+            var candidateKey = string.IsNullOrWhiteSpace(RecowilkApiKey) ? null : RecowilkApiKey.Trim();
             settings.Hotkey = new HotkeySettings
             {
                 Key = HotkeyKey,
@@ -197,10 +217,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (!string.IsNullOrWhiteSpace(settings.RecordingsDirectory))
                 Directory.CreateDirectory(settings.RecordingsDirectory);
 
-            var commit = SettingsTransactionService.TryCommit(
-                _settingsService,
-                _hotkeyService,
-                settings);
+            var commit = await RecowilkSettingsTransactionService.TryCommitAsync(
+                _settingsService, _hotkeyService, _recowilkCredentialStore, _recowilkUploadQueue,
+                settings, candidateKey).ConfigureAwait(true);
             if (!commit.Success)
             {
                 StatusMessage = commit.ErrorMessage ?? "Nie udało się zapisać ustawień.";
@@ -220,6 +239,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
 
             StatusMessage = "Ustawienia zapisane.";
+            RecowilkApiKey = string.Empty;
             _notificationService.ShowInfo("Ustawienia", "Ustawienia zostały zapisane.");
             await _meetingAutomationService.CheckNowAsync().ConfigureAwait(true);
         }
@@ -229,6 +249,47 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             MessageBox.Show("Nie udało się zapisać ustawień: " + ex.Message, "Błąd",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    [RelayCommand]
+    private async Task TestRecowilkAsync()
+    {
+        IsRecowilkBusy = true;
+        try
+        {
+            var result = await _recowilkUploadQueue.TestConnectionAsync(RecowilkBaseUrl, RecowilkApiKey)
+                .ConfigureAwait(true);
+            RecowilkStatus = result.Success
+                ? "Połączenie i klucz API są poprawne."
+                : "Nie udało się zweryfikować konfiguracji RecoWilk.";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Test połączenia RecoWilk");
+            RecowilkStatus = "Błąd połączenia: " + ex.Message;
+        }
+        finally { IsRecowilkBusy = false; }
+    }
+
+    [RelayCommand]
+    private void ClearRecowilkKey()
+    {
+        if (!_recowilkCredentialStore.HasKey)
+        {
+            RecowilkStatus = "Brak zapisanego klucza API.";
+            return;
+        }
+        var answer = MessageBox.Show(
+            "Usunąć zapisany klucz RecoWilk? Oczekujące wpisy kolejki i lokalne MP3 pozostaną zachowane.",
+            "RecoWilk", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (answer != MessageBoxResult.Yes) return;
+        _recowilkCredentialStore.Clear();
+        RecowilkApiKey = string.Empty;
+        RecowilkUploadEnabled = false;
+        var settings = _settingsService.Current;
+        settings.RecowilkUploadEnabled = false;
+        _settingsService.Save(settings);
+        RecowilkStatus = "Klucz usunięty. Oczekujące nagrania pozostają w kolejce.";
     }
 
     [RelayCommand]

@@ -158,7 +158,7 @@ Akceptacja: automatyczna sesja używa endpointów aktywnej przeglądarki, zapisu
 
 #### R-014: linki Google Meet bez wydarzenia Calendar
 
-Status: implementacja aplikacji 1.2.4, rozszerzenia Meeting Orgniazer Gemini i testy deterministyczne zakończone; naprawiono jednoznaczne tworzenie klientów Google OAuth przez DI, zgodność maski `signedinUser` z Meet API oraz blokowanie nowych linków przez zakończone śledzone spotkanie; ponowny test prawdziwego linku Meet oczekuje na wykonanie scenariusza 5B.
+Status: implementacja aplikacji 1.2.6, rozszerzenia Meeting Orgniazer Gemini i testy deterministyczne zakończone; naprawiono jednoznaczne tworzenie klientów Google OAuth przez DI, zgodność maski `signedinUser` z Meet API oraz blokowanie nowych linków przez zakończone lub niedostępne (`403/404`) śledzone spotkanie; ponowny test prawdziwego linku Meet oczekuje na wykonanie scenariusza 5B.
 
 - Dostarcz rozszerzenie Manifest V3 dla Chrome/Edge działające wyłącznie na `meet.google.com`.
 - Przekazuj przez Native Messaging jedynie kod spotkania i nazwę przeglądarki; token OAuth pozostaje wyłącznie w aplikacji.
@@ -168,6 +168,7 @@ Status: implementacja aplikacji 1.2.4, rozszerzenia Meeting Orgniazer Gemini i t
 - Sygnał rozszerzenia ma wybudzać sprawdzenie bez zwiększania częstotliwości odpytywania Calendar.
 - Brak, zamknięcie lub awaria rozszerzenia nie może samodzielnie zatrzymać trwającego nagrania.
 - Po zakończeniu nagrania i potwierdzonym opuszczeniu śledzonego spotkania zwalniaj je, aby nowy aktywny link mógł zostać sprawdzony bez restartu aplikacji.
+- Po `403` lub `404` zwalniaj niedostępne śledzone spotkanie tylko wtedy, gdy żadne nagranie nie jest aktywne; następnie kontynuuj sprawdzanie świeżych linków rozszerzenia.
 - Udostępnij pakiet z Ustawień; jawnie opisz wymagany ręczny krok `Załaduj rozpakowane`, dopóki rozszerzenie nie trafi do sklepów.
 
 Akceptacja: otrzymany link Meet bez wpisu Calendar rozpoczyna nagrywanie dopiero po faktycznym dołączeniu połączonego konta, kolejne spotkanie uruchamia automat bez restartu po opuszczeniu poprzedniego, zamknięcie karty bez wiarygodnej odpowiedzi API nie zatrzymuje materiału, a rozszerzenie nie uzyskuje dostępu do tokenów ani historii przeglądania.
@@ -194,6 +195,246 @@ Status: implementacja aplikacji 1.2.5 i testy deterministyczne zakończone; test
 - Nie zatrzymuj ani nie modyfikuj głównej sesji nagrywania przy zamknięciu mostu.
 
 Akceptacja: po zamknięciu portu Native Messaging proces hosta kończy się w ciągu 2 sekund bez aktywnej pętli CPU, a instalator może zastąpić plik bez ręcznego zamykania osieroconych instancji.
+
+#### R-017: niezawodna wysyłka gotowych nagrań do RecoWilk
+
+Status: implementacja lokalna R-017A–R-017G oraz automatyczna część R-017H zakończone 2026-08-25. Klient ma typowany kontrakt, szyfrowaną i migrowalną kolejkę v2 z tenant binding, trwałą maszynę stanów, obsługę `410`/`422`, walidację chunków, klasyfikację retry, transakcyjne ustawienia i idempotentny shutdown. Pełna brama: 149 testów przeszło, 1 test Media Foundation opt-in pominięty, build Release 0 ostrzeżeń. Przed wydaniem pozostaje manualny test E2E z testową instancją RecoWilk.
+
+- Uruchamiaj integrację dopiero po atomowym opublikowaniu finalnego MP3.
+- Zachowuj MP3 lokalnie niezależnie od wyniku wysyłki.
+- Przechowuj klucz API przez DPAPI i nie zapisuj go w ustawieniach ani logach.
+- Zapisuj trwały wpis kolejki przed pierwszą próbą sieciową; po restarcie wznawiaj brakujące chunki.
+- Identyfikuj import przez stabilne `recordingId`, aby retry nie tworzył drugiego spotkania.
+- Pobieraj opis i uczestników Calendar bez umieszczania ich w logach.
+- Zezwalaj na HTTP wyłącznie dla loopback/localhost; pozostałe serwery wymagają HTTPS.
+
+##### Jawny kontrakt klient–serwer v1
+
+Wszystkie poniższe endpointy są względne wobec skonfigurowanego bazowego URL RecoWilk. Klient wysyła `Authorization: ApiKey <klucz>`. Poza loopback wymagany jest HTTPS. Błędy domenowe mają ciało `application/problem+json` z polami co najmniej `title`, `detail`, `status` i `traceId`; błędy uwierzytelnienia zawierają `title`, `detail` i opcjonalnie `traceId`.
+
+**Test klucza i związanie z tenantem**
+
+- Właściwy endpoint: `GET /api/v1/ingest/ping`.
+- `200 OK` oznacza poprawny, aktywny i niewygasły klucz z zakresem `meeting.ingest` oraz aktywnego właściciela spotkań. Odpowiedź: `{ "status":"ok", "apiVersion":"v1", "organizationId", "apiKeyId", "meetingOwnerId" }`.
+- `401` oznacza klucz brakujący, błędny, wygasły, unieważniony albo nieaktywnego właściciela; `403` — brak zakresu; `429` — limit wywołań. Żaden inny kod nie oznacza poprawnego testu.
+- `meetingId` i `uploadId` należą do konkretnej bazy/instancji RecoWilk, organizacji oraz efektywnego `meetingOwnerId`. Nie wolno używać ich po zmianie bazowego URL, organizacji lub odpowiedzialnego użytkownika. Dostęp nie jest przywiązany do samego `apiKeyId`: po rotacji albo przez inny klucz tej samej organizacji i tego samego właściciela istniejące identyfikatory pozostają dostępne.
+- Wpis kolejki powinien pamiętać bazowy URL oraz wartości zwrócone przez `ping`. Zmiana któregokolwiek z nich wymaga wyzerowania zapisanych `meetingId`/`uploadId` i ponownego rozpoczęcia od stabilnego `externalId`.
+
+**Utworzenie lub odzyskanie spotkania**
+
+- `POST /api/v1/ingest/meetings`; stabilne `externalId` jest właściwym kluczem idempotencji i ma 1–300 znaków. Recorder używa `recorder:<recordingId UUID>`.
+- Pierwsze wywołanie zwraca `201 { "meetingId", "created":true }`. Powtórka tego samego `externalId` w tej samej organizacji zwraca `200` z tym samym `meetingId` i `created:false`.
+- Nagłówek `Idempotency-Key` na tym endpointcie nie jest w wersji v1 źródłem idempotencji. Klient może go wysłać dla diagnostyki, ale musi mieć tę samą wartość co `externalId` i nie może polegać wyłącznie na nagłówku.
+- Po utracie odpowiedzi klient ponawia identyczny POST. Alternatywnie może odzyskać identyfikator przez `GET /api/v1/ingest/meetings/{url-encoded externalId}`. `409 meeting_import_conflict` przy równoległym utworzeniu oznacza stan przejściowy — należy ponowić GET/POST, nie generować nowego `externalId`.
+- `title` ma 1–500 znaków, `description` najwyżej 10 000 znaków. Typ spotkania i projekt pochodzą z ustawień klucza API.
+
+**Inicjalizacja uploadu**
+
+- `POST /api/v1/ingest/meetings/{meetingId}/uploads` z ciałem zawierającym `fileName`, `sizeBytes`, opcjonalne `sha256`, `chunkSizeBytes`, `codec`, `durationMs` i `deviceInfoJson`.
+- `Idempotency-Key` identyfikuje sesję w obrębie danego `meetingId`; Recorder używa `recorder:<recordingId UUID>:audio:<numer sesji>`. Powtórzenie tego samego żądania z tym samym kluczem zwraca ten sam `uploadId`, `chunkSize`, `totalChunks` i `expiresAt`.
+- Po utracie odpowiedzi klient ponawia identyczny POST z tym samym kluczem. `409 upload_init_conflict` przy równoległej inicjalizacji oznacza „ponów”.
+- Sesja żyje 48 godzin. Po `410 upload_expired` klient zeruje `uploadId`, zwiększa numer sesji w `Idempotency-Key` i inicjuje nowy upload dla tego samego spotkania; ponowne użycie klucza wygasłej sesji zwróci ten sam, bezużyteczny `uploadId`.
+
+**Chunki i wznowienie**
+
+- Serwer przyjmuje żądane `chunkSizeBytes` w zakresie od 256 KiB do 16 MiB, ale wartość spoza zakresu jest zaciskana, a nie odrzucana. Brak wartości oznacza 5 MiB. Odpowiedź inicjalizacji jest zawsze źródłem prawdy — klient używa zwróconego `chunkSize` i `totalChunks`.
+- `GET /api/v1/ingest/uploads/{uploadId}` zwraca `{ uploadId, status, receivedChunks, missingChunks }`. Indeksy są zerowe, unikalne i mieszczą się w `0..totalChunks-1`; klient wysyła wyłącznie `missingChunks`.
+- `PUT /api/v1/ingest/uploads/{uploadId}/chunks/{index}` ma ciało binarne dokładnie wielkości `chunkSize`, z wyjątkiem ostatniego fragmentu. Klient zawsze wysyła `Content-SHA256` jako 64 małe znaki hex SHA-256 fragmentu. Sukces zwraca `204`.
+- Ponowienie już zapisanego indeksu jest idempotentne. Po utracie odpowiedzi klient ponownie pobiera status; jeśli indeks nadal jest brakujący, wysyła go ponownie. `409 upload_concurrency_conflict` oznacza ponowienie po pobraniu statusu. `409 chunk_checksum_mismatch` lub `422 chunk_size_mismatch` wymaga ponownego odczytania właściwego zakresu lokalnego MP3, a nie pominięcia fragmentu.
+
+**Finalizacja i przetwarzanie**
+
+- `POST /api/v1/ingest/uploads/{uploadId}/complete?startProcessing=true` zwraca `202 { "audioAssetId", "processingJobId" }`. Brak parametru także oznacza uruchomienie przetwarzania; tylko `startProcessing=false` je wyłącza.
+- Finalizacja zakończonej sesji jest idempotentna i zwraca ten sam `audioAssetId` oraz istniejący `processingJobId`. Po utracie odpowiedzi klient ponawia ten sam POST. Nie należy uruchamiać równoległych finalizacji tej samej sesji.
+- `422 upload_incomplete` oznacza powrót do GET statusu i dosłanie brakujących fragmentów. Kolejkę wolno usunąć dopiero po odpowiedzi 2xx z finalizacji; lokalnego MP3 nie usuwa się nigdy automatycznie.
+
+**Zgoda uczestników**
+
+- `consentConfirmed=true` ustawia wszystkim przekazanym uczestnikom stan `Informed`: potwierdza jedynie, że zostali poinformowani o nagrywaniu. Nie oznacza akceptacji prawnej ani udzielenia zgody i nie zastępuje polityki organizacji.
+- `consentConfirmed=false` zachowuje jawny `consentStatus` uczestnika, a przy jego braku zapisuje `NotAsked`. Recorder nie ma wiarygodnego sygnału poinformowania wszystkich osób, dlatego zawsze wysyła `false`.
+
+**Limity i czasy**
+
+- Rozmiar pliku: od 1 bajtu do 4 GiB włącznie. Sesja uploadu: 48 godzin. Limit ingest: 300 żądań na minutę na klucz i instancję API; po `429` klient stosuje backoff.
+- Klient ma timeout 10 minut dla pojedynczego żądania. API nie deklaruje krótszego timeoutu aplikacyjnego, ale reverse proxy lub tunel może mieć własny limit. Timeout zawsze oznacza nieznany wynik operacji, więc klient nie tworzy nowych identyfikatorów, tylko stosuje opisane wyżej odczyty statusu i idempotentne ponowienia.
+- Retry dla błędów sieciowych, timeoutów, `409` wymienionych wyżej, `429` i `5xx` używa wykładniczego opóźnienia do 30 minut. `401`/`403` wymagają naprawy klucza lub członkostwa i nie mogą powodować utraty wpisu kolejki.
+
+Akceptacja: utrata sieci i restart aplikacji nie tracą MP3 ani stanu uploadu; powtórka tworzy jedno spotkanie, a poprawny upload automatycznie uruchamia przetwarzanie.
+
+##### Audyt stanu klienta z 2026-08-25
+
+1. Wpis kolejki przechowuje `meetingId` i `uploadId`, ale nie przechowuje kanonicznego bazowego URL, `organizationId` ani `meetingOwnerId`. Worker używa bieżących ustawień, więc po zmianie celu może wysłać stare identyfikatory do innej instancji lub organizacji.
+2. `410 upload_expired` jest obsługiwany jak zwykły błąd przejściowy. Brakuje numeru sesji, wyzerowania `uploadId` i nowego klucza `recorder:<recordingId>:audio:<numer sesji>`.
+3. `422 upload_incomplete` nie wraca do odczytu statusu i dosłania brakujących fragmentów. Obecny klient może bez końca ponawiać samą finalizację.
+4. Wszystkie błędy HTTP trafiają do jednego backoffu. Nie ma rozróżnienia `401/403`, błędów trwałych, konfliktów domenowych, `429`, `5xx` i nieznanego wyniku po timeoutcie.
+5. `chunkSize`, `totalChunks` i `missingChunks` nie są walidowane przed obliczaniem zakresu i alokacją bufora. Jeden błędny wpis może przerwać iterację workera i opóźniać pozostałe nagrania.
+6. Wpis JSON kolejki zawiera jawny `RecordingSourceContext`, w tym potencjalny opis, URL i uczestników. Jest to niespójne z deklaracją README, że listy uczestników nie są zapisywane.
+7. Kolejka jest zwalniana ręcznie, a następnie ponownie przez kontener DI, podczas gdy jej `DisposeAsync` nie jest idempotentne. Błąd shutdownu jest połykany przez ogólny `catch`.
+8. Klucz API jest zapisywany przed walidacją i zatwierdzeniem ustawień, a kontrolka UI pokazuje go w zwykłym `TextBox`.
+9. Nie istnieją automatyczne testy utworzenia spotkania, inicjalizacji uploadu, chunków, finalizacji, restartu, zmiany tenantu ani odpowiedzi domenowych.
+
+##### Zakres i reguły realizacji
+
+- Zadanie dotyczy wyłącznie integracji RecoWilk, trwałej kolejki, ustawień tej integracji oraz jej dokumentacji. Nie zmienia capture, miksowania, recovery WAV ani publikacji MP3.
+- Każdy krok rozpoczyna się od testu odtwarzającego brakujące zachowanie. Refaktoryzacja jest dozwolona tylko wtedy, gdy jest niezbędna do testowalnej implementacji danego kroku.
+- Lokalny MP3 jest źródłem prawdy i nigdy nie jest usuwany przez integrację. Wpis kolejki wolno usunąć dopiero po potwierdzonej odpowiedzi 2xx z finalizacji.
+- Żaden sekret, opis wydarzenia, adres uczestnika ani ciało błędu mogące zawierać te dane nie może trafić do logu.
+- Stare wpisy kolejki muszą zostać zmigrowane albo bezpiecznie zatrzymane do decyzji użytkownika; aktualizacja aplikacji nie może ich cicho usunąć.
+
+##### Kolejność implementacji
+
+**R-017A — testowalny klient kontraktu i modele odpowiedzi**
+
+Zakres:
+
+- Wydziel wywołania HTTP i parsowanie odpowiedzi od workera kolejki.
+- Zastąp wynik `bool` testu połączenia typowanym wynikiem zawierającym `organizationId`, `apiKeyId`, `meetingOwnerId`, wersję API i bezpieczny komunikat błędu.
+- Wprowadź typowany problem API z kodem domenowym, statusem HTTP i `traceId`; nie przenoś pełnego ciała odpowiedzi do logów ani UI.
+- Zachowaj `GET /api/v1/ingest/ping`, schemat `Authorization: ApiKey` oraz wymóg HTTPS poza loopback.
+
+Testy rozpoczynające krok:
+
+- `200` z kompletną odpowiedzią `ping`; brak wymaganych pól w odpowiedzi `200`; `401`, `403`, `429` i `5xx`.
+- Odrzucenie HTTP poza loopback, niepoprawnego URL i odpowiedzi o niezgodnym `apiVersion`.
+- Parsowanie `application/problem+json` bez ujawnienia sekretu i treści prywatnych.
+
+Akceptacja: kod wywołujący otrzymuje zweryfikowaną tożsamość celu albo typowany błąd; nie interpretuje dowolnej odpowiedzi 2xx jako kompletnej konfiguracji.
+
+**R-017B — wersjonowany i prywatny wpis kolejki v2**
+
+Zakres:
+
+- Wprowadź `schemaVersion`, stabilny `recordingId`/`externalId`, kanoniczny `baseUrl`, `organizationId`, `meetingOwnerId`, informacyjny `apiKeyId`, etap operacji, `meetingId`, `uploadId`, `uploadSessionNumber`, `chunkSize`, `totalChunks`, `expiresAt`, retry i ostatnią bezpieczną kategorię błędu.
+- Zapisuj techniczny stan atomowo przez unikalny plik tymczasowy na tym samym woluminie. Po restarcie obsłuż pozostały plik tymczasowy i uszkodzony JSON przez kwarantannę, bez blokowania innych wpisów.
+- Zaszyfruj przez DPAPI część zawierającą tytuł, opis, URL i uczestników albo zaszyfruj cały wpis. Nie zapisuj klucza API we wpisie.
+- Dodaj migrację istniejącego wpisu v1. Ponieważ v1 nie zna tenantu, przed użyciem zapisanych zdalnych identyfikatorów wykonaj `ping`; jeśli nie da się potwierdzić zgodności, wyzeruj `meetingId` i `uploadId`, zachowując `externalId` oraz MP3.
+
+Testy rozpoczynające krok:
+
+- Round-trip v2, migracja v1, przerwany zapis, uszkodzony JSON i niezależne przetwarzanie kolejnego poprawnego wpisu.
+- Potwierdzenie, że jawny plik nie zawiera e-maila, opisu, URL ani klucza.
+- Brak MP3, pusty plik, plik ponad 4 GiB oraz brak możliwości odczytu.
+
+Akceptacja: restart zachowuje potrzebny stan, dane prywatne nie występują jawnie, a uszkodzony wpis nie zatrzymuje całej kolejki.
+
+**R-017C — związanie wpisu z instancją i tenantem**
+
+Zakres:
+
+- Przed użyciem zdalnych identyfikatorów porównaj kanoniczny URL, `organizationId` i `meetingOwnerId` z bieżącym wynikiem `ping`.
+- Po zmianie któregokolwiek z tych trzech pól wyzeruj `meetingId`, `uploadId` i parametry chunków, następnie rozpocznij od tego samego stabilnego `externalId` w nowym celu.
+- Zmiana samego `apiKeyId` przy niezmienionej organizacji i właścicielu nie resetuje identyfikatorów.
+- Snapshot celu zapisuj przed pierwszym żądaniem tworzącym spotkanie.
+
+Testy rozpoczynające krok:
+
+- Zmiana URL, organizacji i właściciela osobno; rotacja klucza w tym samym kontekście; restart między `ping` a `POST meetings`.
+- Kanonizacja URL obejmująca końcowy slash, wielkość hosta i domyślne porty bez zmiany ścieżki bazowej.
+
+Akceptacja: żaden `meetingId` ani `uploadId` nie jest wysyłany do innego celu, a rotacja klucza w tym samym kontekście poprawnie wznawia upload.
+
+**R-017D — trwała maszyna stanów i idempotencja**
+
+Zakres:
+
+- Wprowadź etapy co najmniej: `WaitingForCredentials`, `CreatingMeeting`, `InitializingUpload`, `UploadingChunks`, `Completing`, `Completed`, `PermanentFailure`.
+- Zapisuj stan po każdej potwierdzonej zmianie identyfikatora i przed przejściem do następnej operacji sieciowej.
+- Twórz lub odzyskuj spotkanie przez stabilne `externalId`; po timeoutcie lub `409 meeting_import_conflict` ponawiaj ten sam POST albo wykonaj GET po `externalId`.
+- Inicjalizuj upload kluczem `recorder:<recordingId>:audio:<uploadSessionNumber>`. Po utracie odpowiedzi ponawiaj identyczne żądanie.
+- Po `410 upload_expired` wyzeruj wyłącznie stan uploadu, zwiększ numer sesji, zapisz wpis i utwórz nową sesję dla istniejącego spotkania.
+
+Testy rozpoczynające krok:
+
+- Restart i timeout przed oraz po każdej odpowiedzi: create, init, status, chunk i complete.
+- `201`/`200` dla spotkania, `409 meeting_import_conflict`, `409 upload_init_conflict` oraz `410 upload_expired`.
+- Dwie próby workera nie mogą równolegle obsługiwać tego samego wpisu.
+
+Akceptacja: dowolny restart lub nieznany wynik żądania nie tworzy duplikatu spotkania, a wygaśnięta sesja jest zastępowana sesją o kolejnym numerze.
+
+**R-017E — bezpieczne chunki i finalizacja**
+
+Zakres:
+
+- Żądaj domyślnie 5 MiB i traktuj odpowiedź serwera jako źródło prawdy, ale odrzucaj `chunkSize` poza 256 KiB–16 MiB, niezgodne `totalChunks`, obcy `uploadId`, duplikaty oraz indeksy poza zakresem.
+- Obliczaj offset i długość z kontrolą przepełnienia; używaj ograniczonego, ponownie wykorzystywanego bufora i respektuj anulowanie odczytu, hashowania i wysyłania.
+- Po timeoutcie PUT ponownie pobieraj status. `409 upload_concurrency_conflict` wraca do statusu, a checksum/size mismatch ponownie odczytuje właściwy zakres pliku.
+- Po `422 upload_incomplete` z finalizacji wracaj do statusu i dosyłaj braki. Usuwaj wpis dopiero po 2xx z `complete`.
+
+Testy rozpoczynające krok:
+
+- Pliki jedno- i wielochunkowe, ostatni krótszy fragment, hash małymi znakami hex i dokładne rozmiary ciał.
+- Brakujące, powtórzone, ujemne i zbyt duże indeksy; błędny rozmiar i liczba chunków.
+- Timeout PUT, konflikt, checksum mismatch, size mismatch, `422 upload_incomplete` i idempotentna finalizacja.
+
+Akceptacja: klient wysyła wyłącznie poprawne brakujące zakresy, nie wykonuje niekontrolowanych alokacji i nie usuwa wpisu przed potwierdzoną finalizacją.
+
+**R-017F — polityka retry, izolacja wpisów i diagnostyka**
+
+Zakres:
+
+- Retry z jitterem i limitem 30 minut stosuj tylko dla sieci, timeoutów, obsługiwanych `409`, `429` i `5xx`; respektuj poprawny `Retry-After` bez przekroczenia bezpiecznego limitu.
+- `401/403` ustawiają `WaitingForCredentials` i pozostawiają wpis bez aktywnej pętli żądań. Trwałe `4xx`, niezgodny kontrakt i błędny lokalny plik przechodzą do `PermanentFailure` z bezpiecznym komunikatem.
+- Awaria jednego wpisu nie może przerywać iteracji pozostałych. Wprowadź pojedynczego właściciela pliku wpisu i blokadę przed równoległym workerem.
+- Loguj tylko `recordingId`, etap, kategorię błędu, status HTTP, `traceId`, numer próby i termin następnej próby; nie loguj nagłówka Authorization, payloadu spotkania ani pełnego ciała błędu.
+
+Testy rozpoczynające krok:
+
+- Macierz statusów HTTP i kodów domenowych, `Retry-After`, limit backoffu, anulowanie opóźnienia i ponowne wybudzenie po zmianie ustawień.
+- Pierwszy uszkodzony wpis oraz drugi poprawny; oba muszą otrzymać niezależny wynik.
+
+Akceptacja: błędy trwałe nie generują nieskończonego ruchu, błędy przejściowe są wznawiane, a pojedynczy wpis nie blokuje kolejki.
+
+**R-017G — ustawienia, prywatność i cykl życia aplikacji**
+
+Zakres:
+
+- Waliduj URL i testuj nowy klucz przed zapisaniem; zatwierdzaj ustawienia oraz sekret w kontrolowanej kolejności z rollbackiem przy błędzie.
+- Zastąp jawne pole klucza kontrolką maskującą i dodaj osobną akcję usunięcia klucza, która nie usuwa oczekujących wpisów ani MP3.
+- W UI wyjaśnij, że po włączeniu wysyłane są MP3 oraz dostępne metadane: tytuł, opis, terminy, źródło/link i uczestnicy; `consentConfirmed` pozostaje `false`.
+- Usuń ręczne podwójne zwalnianie albo zrób start i `DisposeAsync` idempotentne. Shutdown ma anulować aktywne żądanie, zapisać stan i pozwolić kontenerowi zwolnić wszystkie usługi.
+- Uzgodnij README, ekran ustawień oraz `docs/MANUAL_TESTS.md` z rzeczywistą retencją i szyfrowaniem kolejki.
+
+Testy rozpoczynające krok:
+
+- Niepoprawne ustawienia z nowym kluczem nie zmieniają poprzedniej konfiguracji; błąd zapisu ustawień nie pozostawia przypadkowo nowego sekretu.
+- Wielokrotne `Start`/`DisposeAsync`, zamknięcie podczas statusu i PUT oraz wznowienie po ponownym uruchomieniu.
+- Kontrakt XAML pola maskowanego i tekstu ujawniającego zakres wysyłanych danych.
+
+Akceptacja: zapis konfiguracji jest spójny, sekret nie jest widoczny ani logowany, a zamknięcie aplikacji nie gubi stanu i nie przerywa zwalniania kontenera DI.
+
+**R-017H — odbiór E2E i wydanie**
+
+Zakres automatyczny:
+
+- Uruchom pełne `./scripts/verify.ps1`, sprawdź diff, warstwy architektury i brak danych użytkownika w artefaktach repozytorium.
+- Dodaj test kontraktowy pełnej ścieżki z podstawionym HTTP oraz test restartu używający rzeczywistych plików kolejki w izolowanym katalogu.
+
+Zakres manualny z testową instancją RecoWilk:
+
+- Poprawny `ping`, utworzenie jednego spotkania, pełne metadane, upload MP3, finalny asset i uruchomiony job.
+- Utrata sieci w połowie uploadu, zakończenie procesu, restart i wysłanie tylko brakujących fragmentów.
+- Rotacja klucza w tej samej organizacji, zmiana właściciela/organizacji, `401/403`, `429`, wymuszone `410 upload_expired` i `422 upload_incomplete`.
+- Potwierdzenie, że MP3 pozostaje lokalnie, wpis znika dopiero po finalizacji, a logi i jawne pliki nie zawierają klucza, opisu, URL ani danych uczestników.
+
+Informacje potrzebne dopiero do E2E: bazowy URL testowej instancji, testowy klucz z zakresem `meeting.ingest`, dostęp do weryfikacji spotkania/assetu oraz sposób wymuszenia lub zasymulowania `410` i `422`.
+
+Akceptacja końcowa R-017: wszystkie testy automatyczne przechodzą, wykonano i zapisano scenariusze manualne sekcji 17, nie powstają duplikaty spotkania ani assetu, zmiana celu nie używa obcych identyfikatorów, restart nie traci postępu, a lokalny MP3 pozostaje zachowany.
+
+##### Kolejność commitów R-017
+
+1. `test: cover recowilk v1 api contract`
+2. `fix: add typed recowilk api client`
+3. `test: cover durable recowilk queue migration`
+4. `fix: persist tenant-bound encrypted upload state`
+5. `test: cover recowilk upload resume states`
+6. `fix: implement idempotent recowilk upload state machine`
+7. `test: cover recowilk chunk validation and retries`
+8. `fix: validate chunks and classify recowilk failures`
+9. `test: cover recowilk settings and shutdown lifecycle`
+10. `fix: make recowilk settings and shutdown transactional`
+11. `docs: document recowilk privacy and e2e validation`
+
+Po każdym commicie należy uruchomić `./scripts/verify.ps1`. Commity `test:` mają wykazać niepowodzenie przed odpowiadającym im commitem `fix:` i przejść po naprawie.
 
 ## Strategia commitów
 
@@ -231,3 +472,8 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-08-11 | R-015, aplikacja 1.2.3 | Windows 11, rzeczywista awaria 1.2.2 oraz deterministyczna symulacja `0x88890004` bez urządzeń | Przed poprawką test nie kompilował się z powodu braku bezpiecznej polityki zakończenia; po poprawce 3/3 testy regresyjne i pełna brama 124 testów przeszły, 1 test MF opt-in pominięty; build Release 0 ostrzeżeń | Lokalny adapter przechwytuje osobno błąd pętli i `AudioClient.Stop`, przekazuje oba przez `RecordingStopped` i nie wypuszcza wyjątku z wątku capture. Matematyka ramek, format i długość nie zostały zmienione. Przy błędzie writer jest domykany, a oba WAV i manifest pozostają do recovery. Instalator `MeetingAudioRecorder-Setup-1.2.3.exe`, 73 720 602 B, SHA-256 `AA606354FD500875944099814AF01394848E598BD85A370142D555A0734BA72D`; wymagany manualny test 8A dla render i mikrofonu. |
 | 2026-08-17 | R-014 hotfix, aplikacja 1.2.4 | Windows 11, rzeczywiste rozszerzenie Chrome i Meet `authuser=2`; deterministyczny test dwóch kolejnych spotkań bez restartu | Przed poprawką nowy kod Meet miał 0 wywołań, a stary 3; po poprawce test regresyjny i pełna brama 125 testów przeszły, 1 test MF opt-in pominięty; build Release 0 ostrzeżeń | Zakończone śledzone spotkanie jest zwalniane dopiero po potwierdzonej nieobecności i tylko gdy żadne nagranie nie jest aktywne. Aktywne nagranie nadal zachowuje właściciela i procedurę bezpiecznego stopu. Instalator `MeetingAudioRecorder-Setup-1.2.4.exe`, 73 719 261 B, SHA-256 `0842826987E35D4F817E1825CE3A677DB0435442DBA70130794D8E6D5FC6D201`; wymagany manualny test 5B.10 z dwoma prawdziwymi spotkaniami. |
 | 2026-08-17 | R-016, aplikacja 1.2.5 | Windows 11, dwie osierocone instancje hosta z nieistniejącymi rodzicami; syntetyczny stdin i proces potomny bez przeglądarki | Przed poprawką czysty EOF zwracał `true`, a każda osierocona instancja zużywała około jednego rdzenia; po poprawce host kończy się kodem 0 poniżej 2 s. Pełna brama: 129 testów przeszło, 1 test MF opt-in pominięty; build Release 0 ostrzeżeń | Instalator 1.2.5 kończy stare hosty przez dokładną nazwę procesu przed kontrolą plików w użyciu; skrypt przeszedł kompilację Inno Setup 6.7.3. `MeetingAudioRecorder-Setup-1.2.5.exe`, 73 718 575 B, SHA-256 `24BBD228C13C5288A748A46F438E2720D15F6C69A2D38033AC2C5229F5E3E5BD`; wymagany manualny test 5C z Chrome/Edge. |
+| 2026-08-21 | R-014 hotfix, aplikacja 1.2.6 | Windows 11, rzeczywisty stan rozszerzenia dla Meet `dkp-fimx-hxd`, log produkcyjny starego spotkania zwracającego `403` oraz deterministyczna symulacja `403/404` | Przed poprawką test wykazał 0 sprawdzeń nowego kodu i 3 sprawdzenia starego; po poprawce oba warianty przechodzą. Pełna brama: 131 testów przeszło, 1 test MF opt-in pominięty; build Release 0 ostrzeżeń | Niedostępne śledzone spotkanie jest zwalniane po `403/404` wyłącznie bez aktywnego nagrania, po czym w tej samej kontroli sprawdzany jest świeży link rozszerzenia. Błąd API podczas nagrywania nadal go nie zatrzymuje. Inno Setup 6.7.3: `MeetingAudioRecorder-Setup-1.2.6.exe`, 73 717 491 B, SHA-256 `4E966961A59BB28265D688C10CA16FA1D783CBBC16063C4BF0CFD43DEDE43163`; wymagany manualny test 5B.11 z prawdziwymi spotkaniami. |
+| 2026-08-25 | R-017 | .NET 8, podstawiony HTTP, bez urządzeń audio | Build Release bez ostrzeżeń; klient sprawdza schemat `ApiKey`, wymusza HTTPS poza localhost, Calendar mapuje opis i pełną listę uczestników | Trwała kolejka powstaje dopiero po finalnym MP3, używa statusu brakujących chunków i nie usuwa lokalnego nagrania; wymagany test E2E z serwerem RecoWilk. |
+| 2026-08-25 | R-017 — ponowny audyt i kompletny plan naprawczy | Dokumentacja oraz analiza statyczna klienta; bez zmian zachowania | `./scripts/verify.ps1`: 134 testy przeszły, 1 test Media Foundation opt-in pominięty; build Release 0 ostrzeżeń | Plan R-017A–R-017H obejmuje kontrakt, migrację kolejki v2, tenant binding, maszynę stanów, chunki, retry, prywatność, shutdown i E2E. Testy RecoWilk nadal obejmują tylko trzy przypadki połączenia; implementacja planu nie została rozpoczęta. |
+| 2026-08-25 | R-017A–R-017H — implementacja lokalna | .NET 8, podstawiony HTTP, izolowane pliki kolejki, bez produkcyjnego API i urządzeń audio | `./scripts/verify.ps1`: 149 testów przeszło, 1 test Media Foundation opt-in pominięty; build Release 0 ostrzeżeń | Testy potwierdzają wyłącznie `200` dla ping, tenant binding, rotację celu, pełny upload, DPAPI-ready queue v2, migrację v1, `410`, `422`, walidację geometrii i indeksów, izolację uszkodzonego wpisu, pozostawienie MP3, idempotentny dispose, maskowanie klucza i rollback ustawień. Oczekuje manualny scenariusz 17 z testową instancją RecoWilk. |
+| 2026-08-25 | R-017 — artefakt 1.3.0 | Windows 11 x64, .NET 8 self-contained, Inno Setup 6.7.3 | Instalator zbudowany po przejściu bramy automatycznej | `MeetingAudioRecorder-Setup-1.3.0.exe`, 73 748 822 B, SHA-256 `FEDBBE20B4D5D2898389EC86428284EA829CE17A814B565ADEE45366E3A5ECB1`; plik nie ma podpisu Authenticode. Przed wdrożeniem produkcyjnym nadal wymagany manualny scenariusz 17 z testową instancją RecoWilk. |

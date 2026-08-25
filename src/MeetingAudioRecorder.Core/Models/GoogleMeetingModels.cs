@@ -6,7 +6,13 @@ public sealed record GoogleCalendarMeeting(
     DateTimeOffset StartsAt,
     DateTimeOffset EndsAt,
     string MeetingUri,
-    string MeetingCode);
+    string MeetingCode)
+{
+    public string? Description { get; init; }
+    public IReadOnlyList<GoogleMeetingAttendee> Attendees { get; init; } = [];
+}
+
+public sealed record GoogleMeetingAttendee(string DisplayName, string? Email, bool IsOrganizer);
 
 public sealed record GoogleMeetPresence(
     string MeetingCode,

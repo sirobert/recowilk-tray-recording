@@ -102,6 +102,9 @@ public partial class App : Application
         _trayIcons = new TrayIconController(_tray);
 
         var coordinator = _services.GetRequiredService<IRecordingCoordinator>();
+        var recowilkUploads = _services.GetRequiredService<IRecowilkUploadQueue>();
+        coordinator.RecordingCompleted += (_, completed) => recowilkUploads.Enqueue(completed);
+        recowilkUploads.Start();
         coordinator.StateChanged += (_, args) =>
         {
             _trayIcons?.Update(args.Current, coordinator.CurrentDuration, args.Message);

@@ -1,3 +1,4 @@
+using System.Net;
 using MeetingAudioRecorder.Core.Interfaces;
 using MeetingAudioRecorder.Core.Models;
 using MeetingAudioRecorder.Core.Services;
@@ -131,6 +132,34 @@ public sealed class MeetingAutomationServiceTests
         Assert.Equal("Google Meet tcu-ysxp-tvw", fixture.Service.Status.MeetingTitle);
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.NotFound)]
+    public async Task InaccessibleCompletedTrackedMeeting_DoesNotBlockNewActiveBrowserMeeting(
+        HttpStatusCode statusCode)
+    {
+        var fixture = new Fixture();
+
+        await fixture.Service.CheckNowAsync();
+        fixture.CompleteRecordingExternally();
+
+        fixture.FailuresByMeetingCode["abc-defg-hij"] = statusCode;
+        fixture.PresenceByMeetingCode["tcu-ysxp-tvw"] = MeetingPresenceStatus.Present;
+        fixture.ActiveMeetLinks.Setup(value => value.GetActiveLinksAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new BrowserMeetLink("tcu-ysxp-tvw", "chrome", Now)]);
+
+        await fixture.Service.CheckNowAsync();
+
+        fixture.Meet.Verify(value => value.GetCurrentUserPresenceAsync(
+            "tcu-ysxp-tvw",
+            "users/me-123",
+            It.IsAny<CancellationToken>()), Times.Once);
+        fixture.Coordinator.Verify(value => value.StartRecordingWithDevicesAsync(
+            It.IsAny<RecordingDeviceSelection>(),
+            It.IsAny<CancellationToken>()), Times.Exactly(2));
+        Assert.Equal("Google Meet tcu-ysxp-tvw", fixture.Service.Status.MeetingTitle);
+    }
+
     [Fact]
     public async Task ThreeConfirmedAbsencesAfterGrace_StopOwnedRecording()
     {
@@ -200,6 +229,8 @@ public sealed class MeetingAutomationServiceTests
                 {
                     if (ThrowMeetError)
                         throw new HttpRequestException("Temporary API failure.");
+                    if (FailuresByMeetingCode.TryGetValue(meetingCode, out var statusCode))
+                        throw new HttpRequestException("Meeting is no longer accessible.", null, statusCode);
                     var presence = PresenceByMeetingCode.GetValueOrDefault(meetingCode, Presence);
                     return new GoogleMeetPresence(
                         meetingCode,
@@ -268,6 +299,7 @@ public sealed class MeetingAutomationServiceTests
         public MeetingAutomationService Service { get; }
         public MeetingPresenceStatus Presence { get; set; } = MeetingPresenceStatus.Present;
         public Dictionary<string, MeetingPresenceStatus> PresenceByMeetingCode { get; } = [];
+        public Dictionary<string, HttpStatusCode> FailuresByMeetingCode { get; } = [];
         public bool ThrowMeetError { get; set; }
         public AppRecordingState RecordingState { get; private set; } = AppRecordingState.Idle;
 

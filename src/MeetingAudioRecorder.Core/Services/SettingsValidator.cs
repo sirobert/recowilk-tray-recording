@@ -57,6 +57,14 @@ public static class SettingsValidator
                 errors.Add("Skrót klawiszowy musi zawierać co najmniej jeden modyfikator (Ctrl, Alt, Shift lub Win).");
         }
 
+        if (settings.RecowilkUploadEnabled)
+        {
+            if (!Uri.TryCreate(settings.RecowilkBaseUrl, UriKind.Absolute, out var uri)
+                || (uri.Scheme != Uri.UriSchemeHttps
+                    && !(uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback)))
+                errors.Add("Adres RecoWilk musi być adresem HTTPS (HTTP jest dozwolone tylko dla localhost).");
+        }
+
         if (errors.Count > 0)
             return ValidationResult.Failure(errors.ToArray());
 
@@ -86,6 +94,7 @@ public static class SettingsValidator
             result.FileNameFormat = "Nagranie_yyyy-MM-dd_HH-mm-ss.mp3";
 
         result.Hotkey ??= new HotkeySettings();
+        result.RecowilkBaseUrl = result.RecowilkBaseUrl?.Trim().TrimEnd('/') ?? string.Empty;
         if (string.IsNullOrWhiteSpace(result.Hotkey.Key))
             result.Hotkey.Key = "R";
 
