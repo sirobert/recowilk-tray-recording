@@ -97,6 +97,12 @@
                     </StackPanel>
                 </GroupBox>
 
+                <GroupBox Header="Tłumaczenie live">
+                    <StackPanel>
+                        <TextBlock Text="Napisy EN → PL z wybranych powyżej urządzeń. Osobny skrót, okno zawsze na wierzchu i lokalna historia bez wysyłania." Style="{StaticResource Hint}"/>
+                        <Button Content="Źródła, skrót i wygląd napisów…" Click="TranslationSettings_Click" Padding="12,6"/>
+                    </StackPanel>
+                </GroupBox>
                 <!-- Folder i MP3 -->
                 <GroupBox Header="Zapis nagrań">
                     <StackPanel>

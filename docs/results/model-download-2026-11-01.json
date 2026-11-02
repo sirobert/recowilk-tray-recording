@@ -1,0 +1,25 @@
+{
+  "version": "1.5.1",
+  "testsPassed": 213,
+  "testsSkipped": 1,
+  "downloadRegressionTests": 7,
+  "buildWarnings": 0,
+  "realDownload": {
+    "verified": true,
+    "downloaded": 2327524,
+    "bundledFiles": 5
+  },
+  "uiRendered": "out/model-download-ui-v151/models.png",
+  "distribution": "Bundled pinned Marian ONNX; Whisper and Silero downloaded on first use",
+  "manualPending": "docs/MANUAL_TESTS.md section 20",
+  "installer": {
+    "bytes": 355292266,
+    "sha256": "BB173940E4A689D939D957568AFADEB5DB7A9214312D232E8D57570BEC942BF4",
+    "file": "MeetingAudioRecorder-Setup-1.5.1.exe"
+  },
+  "publishedSmoke": {
+    "verified": true,
+    "downloaded": 2327524,
+    "bundledFiles": 5
+  }
+}

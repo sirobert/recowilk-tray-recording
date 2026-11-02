@@ -2,7 +2,7 @@
 
 ## Środowisko
 
-- Windows 10 (1903+) lub Windows 11, x64
+- Windows 11 x64; inne wersje Windows tylko zgodnie z wymaganiami .NET 10 w README
 - Mikrofon i urządzenie wyjściowe
 - Aplikacja uruchomiona bez uprawnień administratora
 
@@ -296,3 +296,32 @@ Zapisz w raporcie: wersję Windows i aplikacji, typ konta Google, identyfikatory
 | 32 | HTTP status, retry i traceId są widoczne bez ujawniania sekretów | |
 | 33 | Ręczne ponowienie zachowuje recordingId i nie tworzy duplikatu | |
 | 34 | Dane katalogu są zaszyfrowane DPAPI | |
+
+
+## 19. Tłumaczenia live (R-020)
+
+Scenariusze interaktywne — nie uznawać za wykonane na podstawie testu z WAV:
+
+1. Zainstaluj 1.5.0 po zakończeniu nagrywania. Istniejące ustawienia, katalog MP3 i kolejka eksportu powinny zostać zachowane. Przygotuj modele lokalne. Zapisz konkretne urządzenia oraz GPU/sterownik.
+2. Start przez menu i Ctrl+Alt+T: napisy na wybranym wyjściu; ponowny skrót domyka i zapisuje sesję. Mikrofon przy odznaczonej opcji pozostaje nieotwarty. Uruchom drugą sesję bez restartu aplikacji.
+3. Włącz oba źródła i wypowiadaj różne zdania do mikrofonu oraz na wyjściu. Sprawdź oddzielne oznaczenia, historię obu źródeł i brak mieszania kontekstu. Sprawdź także samo wejście mikrofonowe.
+4. Uruchom równocześnie nagrywanie i tłumaczenie. Stop tłumacza nie kończy nagrywania. Awaria/odłączenie źródła tłumacza nie powinna usunąć żadnego MP3 ani źródeł recovery. Zatrzymanie MP3 nie kończy tłumacza.
+5. Ukryj/przywróć panel, przeciągnij i zmień rozmiar, zmień font/kolory/krycie/original EN. Pisanie w Teams nie powinno być przerywane przez pojawienie się panelu. Sprawdź różne DPI i odłączenie dodatkowego monitora.
+6. Zmień skrót tłumacza; sprawdź konflikt z nagrywaniem i innym procesem. Błąd zapisu ustawień nie może pozostawić przypadkowego nowego skrótu.
+7. Otwórz historię po restarcie; zweryfikuj EN/PL, filtry i kopiowanie. W sesji przerwanej po kilku finalnych frazach starsze wpisy pozostają czytelne. Nie utrwalać draftów jako osobnych wpisów.
+8. Przy aktywnej integracji RecoWilk sama sesja tłumaczenia nie może utworzyć wpisu eksportu. Nie wysyłać testowych tłumaczeń na prawdziwy serwer.
+9. Brak modeli, błędna suma, niedostępny Vulkan, pełny dysk i Stop w trakcie ładowania dają czytelny wynik i zachowują historię. Wyjście z aplikacji domyka tłumaczenie, a osierocony pomocnik kończy się po zamknięciu pipe rodzica.
+
+Diagnostyka izolowana, bez inicjalizacji produkcyjnych usług i bez otwierania urządzeń:
+
+```powershell
+MeetingAudioRecorder.exe --translation-smoke MODELS SOURCE_PCM16_MONO_16K.wav REPORT.json
+MeetingAudioRecorder.exe --translation-smoke MODELS SOURCE.wav REPORT.json 6000
+MeetingAudioRecorder.exe --translation-smoke MODELS SOURCE.wav REPORT.json 0 both
+MeetingAudioRecorder.exe --translation-ui-smoke OUTPUT_DIRECTORY
+```
+
+Pierwsza próba zapisuje zaszyfrowane finalne frazy w katalogu `isolated-translation-store` obok raportu. Raport zawiera tylko liczniki i czasy, bez tekstu. Podglądy UI używają syntetycznych napisów. Diagnostyka nie korzysta z ustawień/sekretów użytkownika ani kolejki eksportu. Zapisz wyniki w dzienniku R-020.
+
+## 20. Pierwsze przygotowanie modeli (1.5.1)
+Na nowym profilu: Start tłumaczenia → Pobierz; sprawdź postęp, anulowanie, ponowienie i start napisów po zakończeniu. Powtórz bez Internetu przy komplecie modeli. W ustawieniach wybierz Turbo i pobierz tylko brakujący model. Sprawdź błędną ścieżkę, brak miejsca i zerwanie sieci: błąd ma pozostać w oknie, Recorder nadal nagrywa. Test interaktywny nie został wykonany automatycznie.

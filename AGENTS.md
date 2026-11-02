@@ -6,7 +6,7 @@ Rozwijaj aplikację jako lokalny, odporny na awarie rejestrator Windows. Najwyż
 
 ## Kontekst techniczny
 
-- Platforma: Windows 10/11 x64, .NET 8, WPF.
+- Platforma: Windows 10/11 x64, .NET 10, WPF.
 - Audio: NAudio, WASAPI Capture i WASAPI Loopback.
 - Wynik: Media Foundation MP3.
 - Architektura: `App` → `Core`; `Audio` i `Infrastructure` implementują interfejsy `Core`.
@@ -14,7 +14,7 @@ Rozwijaj aplikację jako lokalny, odporny na awarie rejestrator Windows. Najwyż
 
 ## Obowiązkowy workflow
 
-1. Przed zmianą przeczytaj `docs/REPAIR_PLAN.md` i wybierz jedno zadanie.
+1. Przed zmianą przeczytaj `docs/REPAIR_PLAN.md` i wybierz jedno zadanie. Przy pracy nad tłumaczeniami przeczytaj także [docs/TRANSLATION_HANDOFF.md](docs/TRANSLATION_HANDOFF.md): uzgodnienia, decyzje, naprawione błędy i mapa kodu. Wyniki testów wyjaśnia [docs/results/README.md](docs/results/README.md).
 2. Dla synchronizacji, capture, WAV, recovery lub długich nagrań użyj `$recorder-audio-reliability`.
 3. Najpierw dodaj test odtwarzający błąd, potem implementację.
 4. Nie łącz refaktoryzacji z naprawą zachowania, jeśli nie jest to konieczne.
@@ -45,4 +45,3 @@ Rozwijaj aplikację jako lokalny, odporny na awarie rejestrator Windows. Najwyż
 - Jeden commit powinien realizować jeden spójny krok planu.
 - Nie commituj `bin`, `obj`, `publish`, nagrań, logów ani danych z profilu użytkownika.
 - Nie omijaj hooków przez `--no-verify`, chyba że użytkownik jawnie o to poprosi; opisz wtedy powód.
-

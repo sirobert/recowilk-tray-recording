@@ -57,6 +57,19 @@ public static class SettingsValidator
                 errors.Add("Skrót klawiszowy musi zawierać co najmniej jeden modyfikator (Ctrl, Alt, Shift lub Win).");
         }
 
+        if (settings.Translation is null) errors.Add("Brak ustawień tłumaczenia.");
+        else
+        {
+            var t = settings.Translation;
+            if (string.IsNullOrWhiteSpace(t.FontFamily) || string.IsNullOrWhiteSpace(t.ModelsDirectory)) errors.Add("Wybierz czcionkę i folder modeli.");
+            if (!System.Text.RegularExpressions.Regex.IsMatch(t.Foreground ?? "", "^#[0-9a-fA-F]{6}$") || !System.Text.RegularExpressions.Regex.IsMatch(t.Background ?? "", "^#[0-9a-fA-F]{6}$")) errors.Add("Kolory muszą mieć postać #RRGGBB.");
+            if (!double.IsFinite(t.Width) || !double.IsFinite(t.Height) || !double.IsFinite(t.Left) || !double.IsFinite(t.Top)) errors.Add("Nieprawidłowa geometria okna napisów.");
+            if (!t.OutputEnabled && !t.MicrophoneEnabled) errors.Add("Wybierz źródło tłumaczenia.");
+            if (t.Hotkey is null || string.IsNullOrWhiteSpace(t.Hotkey.Key) || !(t.Hotkey.Control || t.Hotkey.Alt || t.Hotkey.Shift || t.Hotkey.Windows)) errors.Add("Nieprawidłowy skrót tłumaczenia.");
+            if (t.Hotkey?.EqualsHotkey(settings.Hotkey) == true) errors.Add("Skróty nagrywania i tłumaczenia muszą być różne.");
+            if (!double.IsFinite(t.FontSize) || t.FontSize is < 9 or > 48 || !double.IsFinite(t.BackgroundOpacity) || t.BackgroundOpacity is < .1 or > 1) errors.Add("Nieprawidłowy rozmiar czcionki lub przezroczystość.");
+        }
+
         if (settings.RecowilkUploadEnabled)
         {
             if (!Uri.TryCreate(settings.RecowilkBaseUrl, UriKind.Absolute, out var uri)

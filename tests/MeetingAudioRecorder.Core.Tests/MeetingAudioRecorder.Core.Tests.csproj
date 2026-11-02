@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
@@ -47,4 +47,13 @@
           CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="../../src/MeetingAudioRecorder.TranslationWorker/CaptureIdleBoundary.cs" Link="Translation/CaptureIdleBoundary.cs" />
+    <Compile Include="../../src/MeetingAudioRecorder.TranslationWorker/ReplaySegmenter.cs" Link="Translation/ReplaySegmenter.cs" />
+    <Compile Include="../../src/MeetingAudioRecorder.TranslationWorker/ReplayMailbox.cs" Link="Translation/ReplayMailbox.cs" />
+    <Compile Include="../../src/MeetingAudioRecorder.TranslationWorker/LatestDraft.cs" Link="Translation/LatestDraft.cs" />
+    <Compile Include="../../src/MeetingAudioRecorder.TranslationWorker/SampleRing.cs" Link="Translation/SampleRing.cs" />
+    <Compile Include="../../src/MeetingAudioRecorder.TranslationWorker/SpeechTranslationInput.cs" Link="Translation/SpeechTranslationInput.cs" />
+    <Compile Include="../../src/MeetingAudioRecorder.TranslationWorker/EnglishSentenceSplitter.cs" Link="Translation/EnglishSentenceSplitter.cs" />
+  </ItemGroup>
 </Project>

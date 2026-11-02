@@ -5,6 +5,7 @@ namespace MeetingAudioRecorder.Core.Models;
 /// </summary>
 public sealed class AppSettings
 {
+    public TranslationSettings Translation { get; set; } = new();
     public string MicrophoneDeviceId { get; set; } = string.Empty;
     public string OutputDeviceId { get; set; } = string.Empty;
     public string RecordingsDirectory { get; set; } = string.Empty;
@@ -53,6 +54,7 @@ public sealed class AppSettings
 
     public AppSettings Clone() => new()
     {
+        Translation = (Translation ?? new()).Clone(),
         MicrophoneDeviceId = MicrophoneDeviceId,
         OutputDeviceId = OutputDeviceId,
         RecordingsDirectory = RecordingsDirectory,

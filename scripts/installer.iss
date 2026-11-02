@@ -2,7 +2,7 @@
 ; Nie usuwa nagrań użytkownika przy deinstalacji.
 
 #define MyAppName "Meeting Audio Recorder"
-#define MyAppVersion "1.4.0"
+#define MyAppVersion "1.5.1"
 #define MyAppPublisher "MeetingAudioRecorder"
 #define MyAppExeName "MeetingAudioRecorder.exe"
 
@@ -17,14 +17,14 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\publish\installer
 OutputBaseFilename=MeetingAudioRecorder-Setup-{#MyAppVersion}
-Compression=lzma
+Compression=lzma2/fast
 SolidCompression=yes
 WizardStyle=modern
 UninstallDisplayIcon={app}\{#MyAppExeName}
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes
-CloseApplicationsFilter=MeetingAudioRecorder.exe
+CloseApplicationsFilter=MeetingAudioRecorder.exe,MeetingAudioRecorder.TranslationWorker.exe
 
 [Languages]
 Name: "polish"; MessagesFile: "compiler:Languages\Polish.isl"

@@ -16,6 +16,11 @@
                     <MenuItem Header="Zatrzymaj nagrywanie" Command="{Binding StopRecordingCommand}"
                               IsEnabled="{Binding CanStop}"/>
                     <Separator/>
+                    <MenuItem Header="{Binding Translation.MenuText}" Command="{Binding Translation.ToggleCommand}"/>
+                    <MenuItem Header="Pokaż okno tłumaczenia" Command="{Binding Translation.ShowCommand}"/>
+                    <MenuItem Header="Tłumaczenia live — historia lokalna" Command="{Binding Translation.OpenHistoryCommand}"/>
+                    <MenuItem Header="Ustawienia tłumaczenia" Command="{Binding Translation.OpenSettingsCommand}"/>
+                    <Separator/>
                     <MenuItem Header="Nagrania i eksport" Command="{Binding OpenRecordingsCommand}"/>
                     <MenuItem Header="Ustawienia" Command="{Binding OpenSettingsCommand}"/>
                     <MenuItem Header="Otwórz folder nagrań" Command="{Binding OpenRecordingsFolderCommand}"/>

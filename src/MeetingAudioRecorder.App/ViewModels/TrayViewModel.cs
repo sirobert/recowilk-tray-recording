@@ -11,6 +11,7 @@ namespace MeetingAudioRecorder.App.ViewModels;
 
 public partial class TrayViewModel : ObservableObject
 {
+    public MeetingAudioRecorder.App.Services.TranslationController? Translation { get; set; }
     private readonly IRecordingCoordinator _coordinator;
     private readonly ISettingsService _settingsService;
     private readonly INotificationService _notificationService;
@@ -229,6 +230,7 @@ public partial class TrayViewModel : ObservableObject
             }
         }
 
+        if (Translation is not null) await Translation.ShutdownAsync();
         await _coordinator.DisposeAsync();
         Application.Current.Shutdown();
     }

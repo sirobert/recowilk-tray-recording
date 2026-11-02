@@ -466,6 +466,22 @@ Kolejność commitów:
 3. `feat: add recordings and export window`
 4. `docs: document recording catalog and manual validation`
 
+### R-019 — migracja całego rozwiązania do .NET 10
+
+Status: migracja i weryfikacja automatyczna zakończone 2026-11-01; bez instalowania nowej wersji i bez uruchamiania produkcyjnej automatyki.
+
+Zakres: wszystkie siedem projektów produkcyjnych i testowych, SDK .NET 10 przez global.json, CI oraz aktualna dokumentacja. Zachowujemy wersje używanych bibliotek, format ustawień i danych użytkownika. Usunięto zbędne odwołanie Microsoft.Win32.Registry 5.0.0 (NU1510; API dostarcza platforma). Publikacja aplikacji oraz BrowserBridge pozostaje self-contained win-x64. To migracja platformy, bez zmiany zachowania audio lub eksportu; weryfikujemy istniejącą pełną baterią testów, w tym opt-in Media Foundation.
+
+Akceptacja: format, build Release, testy automatyczne, test kodera MP3 oraz publikacja obu programów na .NET 10. Test manualny zainstalowanego UI, hotkeya i fizycznych urządzeń pozostaje osobną kontrolą.
+
+### R-020 — lokalne tłumaczenia live w Recorderze
+
+Status: implementacja, automatyczna weryfikacja i instalator 1.5.0 ukończone 2026-11-01. Zainstalowanej aplikacji nie zamykano ani nie podmieniano; odbiór interaktywny pozostaje do wykonania.
+
+Osobny proces tłumaczący EN→PL na źródło (wyjście/mikrofon), lokalny protokół IPC, małe okno Topmost z poprawianymi napisami, konfigurowalny skrót i wygląd, trwały lokalny katalog finalnych fraz z EN/PL i czasem. Modele z działającego prototypu; bez połączenia z katalogiem nagrań i kolejką RecoWilk. Nagrywanie pozostaje niezależne. Zapis atomowych szyfrowanych segmentów, przerwana sesja czytelna po restarcie. Urządzenia i profil zamrożone na starcie. Ustawienia współdzielą istniejący wybór endpointów.
+
+Weryfikacja: testy zapisu/recovery i nieutrwalania draftów przed implementacją, testy ustawień, przeniesione testy segmentera/kolejek, potok WAV w procesie potomnym, build/format/test i publikacja. Bez uruchamiania produkcyjnego eksportu w testach. Test dwóch fizycznych źródeł podczas nagrywania i test globalnego skrótu wymagają odbioru interaktywnego.
+
 ## Strategia commitów
 
 1. `test: reproduce loopback timeline duplication`
@@ -508,3 +524,25 @@ Każdy commit musi przejść `.\scripts\verify.ps1`. Testy sprzętowe zapisuj w 
 | 2026-08-25 | R-017A–R-017H — implementacja lokalna | .NET 8, podstawiony HTTP, izolowane pliki kolejki, bez produkcyjnego API i urządzeń audio | `./scripts/verify.ps1`: 149 testów przeszło, 1 test Media Foundation opt-in pominięty; build Release 0 ostrzeżeń | Testy potwierdzają wyłącznie `200` dla ping, tenant binding, rotację celu, pełny upload, DPAPI-ready queue v2, migrację v1, `410`, `422`, walidację geometrii i indeksów, izolację uszkodzonego wpisu, pozostawienie MP3, idempotentny dispose, maskowanie klucza i rollback ustawień. Oczekuje manualny scenariusz 17 z testową instancją RecoWilk. |
 | 2026-08-25 | R-017 — artefakt 1.3.0 | Windows 11 x64, .NET 8 self-contained, Inno Setup 6.7.3 | Instalator zbudowany po przejściu bramy automatycznej | `MeetingAudioRecorder-Setup-1.3.0.exe`, 73 748 822 B, SHA-256 `FEDBBE20B4D5D2898389EC86428284EA829CE17A814B565ADEE45366E3A5ECB1`; plik nie ma podpisu Authenticode. Przed wdrożeniem produkcyjnym nadal wymagany manualny scenariusz 17 z testową instancją RecoWilk. |
 | 2026-08-25 | R-018, aplikacja 1.4.0 | .NET 8, Windows DPAPI, podstawiony HTTP, izolowane pliki katalogu i kolejki, kontrakt XAML bez uruchamiania prawdziwego okna | `./scripts/verify.ps1`: 156 testów przeszło, 1 test Media Foundation opt-in pominięty; build Release 0 ostrzeżeń | Testy potwierdzają szyfrowany roundtrip i kwarantannę katalogu, import MP3 i oczekującej kolejki, przypadek `ping=200`/`POST meeting=500`, zachowanie HTTP/trace, idempotentny retry, postęp i trwałą historię po `complete`. Inno Setup 6.7.3: `MeetingAudioRecorder-Setup-1.4.0.exe`, 73 762 052 B, SHA-256 `C1282B559509D583196BB3F805AF11CF38DA4017AD3E01EEABF90E0E1E76A2A7`; brak podpisu Authenticode. Wymagany manualny scenariusz 18 na Windows z prawdziwym Meet i RecoWilk. |
+
+| 2026-11-01 | R-019 — .NET 10 | Windows 11 x64, SDK 10.0.401 | `scripts/verify.ps1`: format OK, Release 0 ostrzeżeń/błędów, 156 testów przeszło; dodatkowy test Media Foundation 1/1 | Wszystkie 7 projektów na net10.0/net10.0-windows, CI 10.0.x, global.json. Publikacja self-contained App i BrowserBridge przeszła; runtime App 10.0.12. Opublikowany BrowserBridge poprawnie kończy się po EOF (kod 0), bez zapisu danych. Artefakty w ignorowanym `publish/net10-validation/`. Instalatora nie przebudowywano ani nie instalowano. Pozostają manualne scenariusze UI/hotkey, WASAPI i integracji Meet/RecoWilk z `docs/MANUAL_TESTS.md`. |
+
+| 2026-11-01 | R-020 — tłumaczenia live 1.5.0 | Windows 11 x64, .NET 10, local Vulkan/Whisper/ONNX; WAV w tempie rzeczywistym, bez otwierania fizycznych urządzeń | `scripts/verify.ps1`: format OK, build Release 0 ostrzeżeń/błędów, 206 testów przeszło; dodatkowy Media Foundation 1/1 | Pierwsze testy magazynu nie kompilowały się przed implementacją. 16 draftów/2 finały na WAV, Stop po 6 s: 3 drafty/1 finał, dwa workery: 31 draftów/4 finały; wszystkie finały ponownie odczytane. Celowo zakończony tylko własny proces pomocniczy: rodzic zgłosił błąd, zachowano 1 finał. Wyrenderowano i obejrzano 3 widoki WPF. Pierwsza próba wykazała blokowanie finału przez draft; dodano anulowanie preview przy commit i budżet preview 3 s (small)/5 s (turbo), z oczekiwaniem na zakończenie natywnego procesora przed kolejnym wywołaniem. Wyniki: `docs/results/translation-live-2026-11-01.json`. Manualne scenariusze 19 pozostają do wykonania. |
+
+| 2026-11-01 | R-020 — pakiet 1.5.0 | Inno Setup 6.7.3, czysta publikacja self-contained .NET 10 | Instalator zbudowany; próba z opublikowanego EXE przeszła: 3 drafty, 2 finały, 2 odczytane finały, bez błędu | `MeetingAudioRecorder-Setup-1.5.0.exe`, 130825947 B, SHA-256 `96a665173d2bc7ad11494662b34a1763d33d43ec5f09a2c2e9b3469962b81a08`. Poprzedni folder publikacji zachowany w ignorowanym `publish/previous-win-x64-*`; brak pozostałości runtime 8 w nowym pakiecie. Zależności natywne wyłącznie w podfolderze pomocnika. Modele przygotowane w domyślnym folderze profilu użytkownika; nie są częścią instalatora. |
+
+### R-021 — pobieranie modeli tłumaczenia
+Prace: pierwsze użycie i przycisk w ustawieniach, postęp, anulowanie, weryfikacja rozmiaru/SHA-256, atomowa publikacja. Testy HTTP przed implementacją.
+
+R-021 — implementacja 1.5.1: Marian ONNX ma lokalny eksport bez publicznego URL, więc jego pięć przypiętych plików dołączamy do publikacji/instalatora. Whisper (profil small albo turbo) i Silero są pobierane przy pierwszym użyciu lub z ustawień. Pliki poprawne pomijane; pliki częściowe usuwane po anulowaniu/błędzie, kolejna próba rozpoczyna dany plik od początku. Każdy plik sprawdzany po rozmiarze i SHA-256 przed atomową publikacją. Pobieranie osobnym klientem HTTP bez danych rozmów, cookies i uwierzytelnienia aplikacji.
+
+Dowody 2026-11-01: przed implementacją nowe testy nie kompilowały się (brak ModelDownload); po implementacji 6/6 testów pobierania (poprawny zapis/pominięcie, błędny hash, HTTP 503, anulowanie przed i po żądaniu, odrzucenie wyjścia poza katalog). Pełne scripts/verify.ps1: format OK, Release 0 ostrzeżeń/błędów, 212 testów przeszło i 1 opt-in Media Foundation pominięty. Rzeczywiste żądania HEAD do trzech źródeł modeli zwróciły 200 i oczekiwane długości. Diagnostyka rzeczywistego downloadera pobrała Silero 2327524 B, sprawdziła hash i przygotowała pięć plików Marian w izolowanym folderze (out/model-download-real/result.json, verified=true). Okno przygotowania modeli wyrenderowane i obejrzane (out/model-download-ui-v151/models.png). Nie pobierano ponownie dużych modeli Whisper; obecne pliki pozostają przypięte i wcześniej sprawdzone. Manualny scenariusz 20: do wykonania, bez instalowania nad aktywnym Recorderem.
+
+R-021 — końcowy przegląd: test ścieżki zakończonej separatorem odtworzył błąd przed poprawką. Po poprawce 7/7 testów pobierania, pełna brama 213 przeszło / 1 MF opt-in pominięty. Instalator używa lzma2/fast, aby ograniczyć czas kompresji dołączonych wag. Pierwszą kompilację instalatora przerwano wyłącznie we własnym procesie ISCC; ponowna publikacja zawiera poprawkę.
+
+R-021 ukończone: instalator 1.5.1 zbudowany (73 s), 355292266 B, SHA-256 BB173940E4A689D939D957568AFADEB5DB7A9214312D232E8D57570BEC942BF4. Rzeczywiste pobranie Silero i przygotowanie Marian z opublikowanego EXE przeszło: verified=true. Raport: docs/results/model-download-2026-11-01.json. Nie instalowano nad działającą aplikacją.
+
+### R-022 — przekazanie kontekstu kolejnym autorom (2026-11-02)
+
+Dokumentacja: docs/TRANSLATION_HANDOFF.md opisuje uzgodnienia, powody decyzji, pułapki, mapę kodu i lokalizację badań. AGENTS.md kieruje do niego przed pracą nad tłumaczeniami. docs/results/README.md wyjaśnia raporty i ich ograniczenia. Zapisano zgłoszenie użytkownika „wszystko działa” bez uznawania go za pełny protokół sprzętowy. Bez zmian zachowania aplikacji; nowe testy regresyjne nie są potrzebne.
+R-022 ukończone: odnośniki nowych dokumentów sprawdzone, git diff --check bez błędów; scripts/verify.ps1: format OK, build Release bez ostrzeżeń i błędów, 213 testów przeszło / 1 Media Foundation opt-in pominięty. Dowód lokalny: out/handoff-verify.log. Bez zmiany programu i bez nowego instalatora.

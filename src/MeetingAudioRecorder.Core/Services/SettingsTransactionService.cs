@@ -14,18 +14,19 @@ public static class SettingsTransactionService
     public static SettingsCommitResult TryCommit(
         ISettingsService settingsService,
         IHotkeyService hotkeyService,
-        AppSettings candidate)
+        AppSettings candidate, bool translation = false)
     {
         ArgumentNullException.ThrowIfNull(settingsService);
         ArgumentNullException.ThrowIfNull(hotkeyService);
         ArgumentNullException.ThrowIfNull(candidate);
 
         var current = settingsService.Current;
-        var previousHotkey = current.Hotkey.Clone();
+        var previousHotkey = (translation ? current.Translation.Hotkey : current.Hotkey).Clone();
+        var candidateHotkey = translation ? candidate.Translation.Hotkey : candidate.Hotkey;
         var wasRegistered = hotkeyService.IsRegistered;
-        var requiresRegistration = !wasRegistered || !candidate.Hotkey.EqualsHotkey(previousHotkey);
+        var requiresRegistration = !wasRegistered || !candidateHotkey.EqualsHotkey(previousHotkey);
 
-        if (requiresRegistration && !hotkeyService.Register(candidate.Hotkey))
+        if (requiresRegistration && !hotkeyService.Register(candidateHotkey))
         {
             return SettingsCommitResult.Fail(
                 hotkeyService.LastError ?? "Nie udało się zarejestrować nowego skrótu.");

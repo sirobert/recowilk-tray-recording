@@ -1,0 +1,22 @@
+{
+  "encoder_model_int8.onnx": {
+    "sha256": "4b4b02e9e98bf0d47188af9372ad864b1d539f9a1f077e11eb2d76bbde3aec20",
+    "bytes": 153348736
+  },
+  "decoder_model_merged_int8.onnx": {
+    "sha256": "ea15f7f8154eb7c031c509efa37e4442f83ab3fbcc3ce19a236a1b000c6cd404",
+    "bytes": 193781014
+  },
+  "source.spm": {
+    "sha256": "1a2606b682d362fb05dd19089ed1203647be6878a50895ed36e6ee428e4131f7",
+    "bytes": 798214
+  },
+  "vocab.json": {
+    "sha256": "d762df43bd1dd0ebdfda4ebb17c4a116e89c69ec0b1de599afbfe548a3ebc376",
+    "bytes": 1836185
+  },
+  "config.json": {
+    "sha256": "5c8e973ebca9144828e5a0aebb5274e0af0e8806a50d695d128b185c450c7fe6",
+    "bytes": 1018
+  }
+}

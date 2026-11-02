@@ -12,16 +12,18 @@ namespace MeetingAudioRecorder.App.Services;
 /// </summary>
 public sealed class HotkeyService : IHotkeyService
 {
-    private const int PrimaryHotkeyId = 0xBEE1;
-    private const int SecondaryHotkeyId = 0xBEE2;
+    private readonly int PrimaryHotkeyId;
+    private readonly int SecondaryHotkeyId;
     private readonly ILogger<HotkeyService> _logger;
     private HwndSource? _source;
     private bool _registered;
     private int _activeHotkeyId;
 
-    public HotkeyService(ILogger<HotkeyService> logger)
+    public HotkeyService(ILogger<HotkeyService> logger, int primaryId = 0xBEE1)
     {
         _logger = logger;
+        PrimaryHotkeyId = primaryId;
+        SecondaryHotkeyId = primaryId + 1;
     }
 
     public event EventHandler? HotkeyPressed;

@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-01",
+  "version": "1.5.0",
+  "platform": ".NET 10 / Windows x64",
+  "qualityGate": {
+    "format": "passed",
+    "releaseBuild": "passed",
+    "warnings": 0,
+    "unitAndIntegrationTestsPassed": 206,
+    "mediaFoundationOptInPassed": 1
+  },
+  "singleSourceWav": {
+    "passed": true,
+    "drafts": 16,
+    "finals": 2,
+    "reloadedFinals": 2,
+    "firstDraftSeconds": 2.8286036
+  },
+  "stopAfter6Seconds": {
+    "passed": true,
+    "drafts": 3,
+    "finals": 1,
+    "reloadedFinals": 1
+  },
+  "twoWorkerWav": {
+    "passed": true,
+    "drafts": 31,
+    "finals": 4,
+    "reloadedFinals": 4,
+    "sources": [
+      "output",
+      "microphone"
+    ],
+    "physicalDevicesOpened": false
+  },
+  "forcedWorkerTermination": {
+    "injectedAfterFirstFinal": true,
+    "parentReportedError": true,
+    "preservedFinals": 1,
+    "passed": true
+  },
+  "ui": "Rendered and inspected overlay, settings, and synthetic history",
+  "privacy": "Tests bypass production startup/upload services. Transcript test artifacts are encrypted and ignored under out/. No audio playback.",
+  "remainingManual": "Global hotkey, real WASAPI sources concurrently with recording, device disconnection, different DPI/monitors, installed UI. No long-duration benchmark or Turbo partials benchmark.",
+  "installer": {
+    "path": "publish/installer/MeetingAudioRecorder-Setup-1.5.0.exe",
+    "bytes": 130825947,
+    "sha256": "96a665173d2bc7ad11494662b34a1763d33d43ec5f09a2c2e9b3469962b81a08",
+    "built": true,
+    "installed": false,
+    "cleanPublish": true,
+    "nativeLibrariesIsolated": true
+  },
+  "publishedPackageSmoke": {
+    "passed": true,
+    "drafts": 3,
+    "finals": 2,
+    "reloadedFinals": 2,
+    "error": null
+  }
+}

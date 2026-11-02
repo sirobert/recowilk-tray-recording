@@ -18,6 +18,7 @@ namespace MeetingAudioRecorder.App;
 
 public partial class App : Application
 {
+    private TranslationController? _translation;
     private ServiceProvider? _services;
     private ISingleInstanceService? _singleInstance;
     private TaskbarIcon? _tray;
@@ -31,6 +32,10 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length > 0 && e.Args[0].StartsWith("--translation-", StringComparison.Ordinal))
+        {
+            _ = TranslationDiagnostics.RunAsync(e.Args); return;
+        }
 
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
@@ -92,12 +97,15 @@ public partial class App : Application
                 MessageBoxImage.Warning);
         }
 
+        _translation = new TranslationController(settingsService, _services.GetRequiredService<ILogger<HotkeyService>>(), _hostWindow.Handle);
+
         // Tray
         _tray = (TaskbarIcon)FindResource("TrayIcon");
         var notificationService = (TrayNotificationService)_services.GetRequiredService<INotificationService>();
         notificationService.Attach(_tray);
 
         var trayVm = _services.GetRequiredService<TrayViewModel>();
+        trayVm.Translation = _translation;
         _tray.DataContext = trayVm;
         _tray.IconSource = TrayIconController.CreateIcon(AppRecordingState.Idle);
         _trayIcons = new TrayIconController(_tray);
@@ -188,6 +196,8 @@ public partial class App : Application
                 OpenSettings,
                 OpenRecordings));
     }
+
+    internal void OpenTranslationSettings() => _translation?.OpenSettings();
 
     private void OpenSettings()
     {
@@ -323,6 +333,7 @@ public partial class App : Application
     {
         try
         {
+            if (_translation is not null) await _translation.ShutdownAsync();
             _hotkeyService?.Dispose();
             _tray?.Dispose();
 

@@ -22,6 +22,8 @@ public partial class SettingsWindow : Window
         };
     }
 
+    private void TranslationSettings_Click(object sender, RoutedEventArgs e) => ((App)Application.Current).OpenTranslationSettings();
+
     private void Close_Click(object sender, RoutedEventArgs e)
     {
         _viewModel.StopTests();

@@ -13,6 +13,28 @@ Przeznaczona do nagrywania spotkań (Google Meet, Microsoft Teams, Zoom itd.) z 
 
 ---
 
+Kontekst dla kolejnych autorów i asystentów: [przekazanie tłumaczeń live](docs/TRANSLATION_HANDOFF.md). Opis raportów testowych: [docs/results](docs/results/README.md).
+
+## Tłumaczenie live EN → PL (1.5.1)
+
+Menu zasobnika → **Rozpocznij tłumaczenie** lub domyślnie **Ctrl+Alt+T**. Ten sam skrót zatrzymuje sesję. W **Ustawieniach tłumaczenia** można zmienić skrót, włączyć wyjście audio, mikrofon lub oba źródła, wybrać model oraz wygląd okna. Urządzenia są tymi samymi, które wybrano i zapisano w głównych ustawieniach Recordera. Start tłumaczenia nie rozpoczyna nagrywania MP3.
+
+Okno napisów jest zawsze na wierzchu, przesuwalne za górny pasek i skalowalne. Domyślna czcionka ma 14 jednostek WPF. Można zmieniać krój, rozmiar, kolory i krycie tła oraz pokazać EN obok/pod PL. „Ukryj” pozostawia tłumaczenie aktywne; „Pokaż okno tłumaczenia” przywraca panel. „Stop” domyka frazę. Roboczy tekst zmienia się podczas mówienia; do historii trafiają wyłącznie finalne frazy. Kontekst jest dzielony po pauzie lub po 20 s ciągłego audio.
+
+**Tłumaczenia live — historia lokalna** pokazuje sesje, EN/PL, czas i źródło. Dostępne są oddzielne filtry tytułu sesji oraz tekstu EN/PL. Zaznaczone komórki można kopiować Ctrl+C. Czas jest przybliżonym czasem fragmentu, nie wyrównaniem każdego słowa. „Mikrofon” i „Wyjście” oznaczają urządzenie, nie tożsamość osoby.
+
+Zapis znajduje się w `%LOCALAPPDATA%\MeetingAudioRecorder\Translations`: zaszyfrowane DPAPI CurrentUser metadane i osobne atomowo publikowane fragmenty. Wersje robocze oraz audio z samego tłumacza nie są utrwalane. Historia jest niezależna od katalogu MP3 i nie jest przekazywana do RecoWilk. Włączenie nagrywania MP3 nadal uruchamia dotychczasowe zasady eksportu tych nagrań. Po awarii zachowane frazy można otworzyć; niedomknięta sesja ma oznaczenie przerwania. Pliki są związane z kontem Windows; nie są przenośnym formatem eksportu. Historia nie ma automatycznego limitu retencji.
+
+Modele działają lokalnie przez Vulkan (Whisper small.en Q8 lub turbo Q8), Silero i Marian ONNX int8. Wymagane są zgodny GPU/sterownik i modele o przypiętych sumach kontrolnych. Instalator dostarcza silnik i testowany eksport Marian ONNX. Przy pierwszym użyciu tłumacza przycisk „Pobierz / sprawdź modele” pobiera Whisper i Silero z Hugging Face / GitHub: około 267 MB dla small.en albo 877 MB dla turbo. To samo okno jest dostępne w ustawieniach tłumaczenia. Pokazuje postęp, pozwala anulować i ponowić próbę. Poprawne modele nie są pobierane ponownie; nieukończony plik jest usuwany i pobierany od początku przy ponowieniu. Rozmiar i SHA-256 są sprawdzane przed atomowym zastąpieniem pliku. Po przygotowaniu tłumacz działa lokalnie. Można również wskazać przygotowany folder albo skopiować zweryfikowane modele:
+
+```powershell
+./scripts/prepare-translation-models.ps1 -SourceDirectory 'D:\Modele' -IncludeTurbo
+```
+
+Domyślne miejsce: `%LOCALAPPDATA%\MeetingAudioRecorder\Models`. Skrypt przyjmuje tylko znane pliki i weryfikuje hash przed i po kopiowaniu. Modele pochodzą z prototypu; jakość pozostaje eksperymentalna (zwłaszcza liczby, negacje i niepełne frazy).
+
+Każde włączone źródło ma osobny proces tłumacza i własny kontekst. Dwa źródła wymagają więcej pamięci i mocy obliczeniowej. Awaria procesu pomocniczego nie kończy procesu nagrywania, lecz obciążenie GPU/CPU nadal jest wspólne dla komputera. Program zatrzymuje przeciążoną sesję zamiast po cichu odrzucać końcowe frazy. Modele są ładowane na początku sesji, przed otwarciem źródła audio.
+
 ## Funkcje
 
 - Praca w **system tray** (ikona stanu: gotowość / nagrywanie / przetwarzanie / błąd)
@@ -34,14 +56,16 @@ Przeznaczona do nagrywania spotkań (Google Meet, Microsoft Teams, Zoom itd.) z 
 
 | Wymaganie | Wartość |
 |-----------|---------|
-| System | Windows 10 (1903+) lub Windows 11 |
+| System | Windows 11; Windows 10 wyłącznie w edycjach/wersjach wspieranych przez .NET 10 |
 | Architektura | x64 |
 | Uprawnienia | Standardowy użytkownik (bez admina) |
-| Runtime | .NET 8 (przy self-contained — nie jest wymagany osobno) |
+| Runtime | .NET 10 (przy self-contained — nie jest wymagany osobno) |
 | Audio | Sterowniki WASAPI (standard Windows) |
 | Kodowanie MP3 | Windows Media Foundation (wbudowane) |
 
 **Nie wymagamy FFmpeg ani innych zewnętrznych programów.**
+
+Do kompilacji wymagane jest SDK .NET 10 (wybierane przez `global.json`, bez wersji preview). Publikacja self-contained dołącza runtime do programu. Zakres wsparcia systemów: [oficjalna lista .NET 10](https://github.com/dotnet/core/blob/main/release-notes/10.0/supported-os.md). Migrację sprawdzono automatycznie na Windows 11; starsze systemy wymagają oddzielnego testu.
 
 ---
 
@@ -55,6 +79,7 @@ src/
   MeetingAudioRecorder.Core/           # modele, interfejsy, stan, use-case
   MeetingAudioRecorder.Audio/          # WASAPI, miks, resampling, MP3
   MeetingAudioRecorder.Infrastructure/ # JSON, Serilog, autostart, mutex, recovery
+  MeetingAudioRecorder.TranslationWorker/ # lokalny silnik EN→PL, osobny proces i prywatny named pipe
   MeetingAudioRecorder.BrowserBridge/  # lokalny host Native Messaging Chrome/Edge
 tests/
   MeetingAudioRecorder.Core.Tests/
@@ -314,3 +339,5 @@ audio nie są zapisywane w logach.
 ## Licencja i odpowiedzialność
 
 Użytkownik odpowiada za zgodność nagrywania z prawem i regulaminami platform (Meet, Teams, Zoom) oraz za uzyskanie zgód uczestników.
+
+Budowanie instalatora wymaga sprawdzonego eksportu Marian: domyślnie Models\marian w profilu użytkownika albo folder wskazany zmienną RECORDER_MARIAN_MODELS. Skrypt publikacji sprawdza wszystkie hashe i dołącza pliki w TranslationModels\marian. Wagi nie są przechowywane w Git.
