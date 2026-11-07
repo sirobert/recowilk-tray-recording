@@ -7,20 +7,37 @@
   <DockPanel>
    <ProgressBar x:Name="BusyIndicator" DockPanel.Dock="Top" Height="3" Margin="0,0,0,6" IsIndeterminate="True" Visibility="Collapsed"/>
    <Grid DockPanel.Dock="Top" Background="Transparent" MouseLeftButtonDown="MoveWindow" Margin="0,0,0,6">
-    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
     <TextBlock x:Name="StatusLabel" Text="Ładowanie tłumacza…" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-    <Button Grid.Column="1" Content="Ukryj" Click="HideWindow" FontSize="11" Padding="6,1" Margin="6,0"/>
-    <Button x:Name="StopButton" Grid.Column="2" Content="■ Stop" Click="StopTranslation" FontSize="11" Padding="6,1"/>
+    <Button Grid.Column="1" Content="Kopiuj całość" Click="CopyAll" FontSize="11" Padding="6,1"/>
+    <Button Grid.Column="2" Content="Ukryj" Click="HideWindow" FontSize="11" Padding="6,1" Margin="6,0"/>
+    <Button x:Name="StopButton" Grid.Column="3" Content="■ Stop" Click="StopTranslation" FontSize="11" Padding="6,1"/>
    </Grid>
-   <ScrollViewer x:Name="Scroll" VerticalScrollBarVisibility="Auto">
-    <ItemsControl x:Name="Lines"><ItemsControl.ItemTemplate><DataTemplate>
-     <StackPanel Margin="0,3,0,7">
-      <TextBlock Text="{Binding Label}" FontSize="10" Opacity="0.7"/>
-      <TextBox Text="{Binding Polish, Mode=OneWay}" Background="Transparent" BorderThickness="0" IsReadOnly="True" TextWrapping="Wrap" Padding="0" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"/>
-      <TextBox Text="{Binding English, Mode=OneWay}" Background="Transparent" BorderThickness="0" IsReadOnly="True" TextWrapping="Wrap" Padding="0" Opacity="0.7" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}" Visibility="{Binding OriginalVisibility}"/>
-     </StackPanel>
-    </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-   </ScrollViewer>
+   <RichTextBox x:Name="Transcript" IsReadOnly="True" IsReadOnlyCaretVisible="True" Background="Transparent"
+                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
+                FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                FontFamily="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=Window}}"
+                IsInactiveSelectionHighlightEnabled="True"
+                BorderThickness="0" Padding="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <RichTextBox.Resources>
+     <Style TargetType="ScrollBar">
+      <Setter Property="Width" Value="8"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="Template">
+       <Setter.Value>
+        <ControlTemplate TargetType="ScrollBar">
+         <Track x:Name="PART_Track" IsDirectionReversed="True" Orientation="Vertical">
+          <Track.DecreaseRepeatButton><RepeatButton Command="ScrollBar.PageUpCommand" Focusable="False"><RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.DecreaseRepeatButton>
+          <Track.Thumb><Thumb><Thumb.Template><ControlTemplate TargetType="Thumb"><Border Background="#88999999" CornerRadius="3" Margin="1,0"/></ControlTemplate></Thumb.Template></Thumb></Track.Thumb>
+          <Track.IncreaseRepeatButton><RepeatButton Command="ScrollBar.PageDownCommand" Focusable="False"><RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.IncreaseRepeatButton>
+         </Track>
+        </ControlTemplate>
+       </Setter.Value>
+      </Setter>
+     </Style>
+    </RichTextBox.Resources>
+    <FlowDocument PagePadding="0"/>
+   </RichTextBox>
   </DockPanel>
  </Border>
 </Window>

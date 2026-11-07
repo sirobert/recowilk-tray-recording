@@ -576,3 +576,16 @@ Status: poprawka przygotowana dla 1.5.3; zastępuje zachowanie natychmiastowego 
 - Bez zmian capture, osi czasu, modeli i retencji danych. Nie wykonano jeszcze manualnego testu globalnego skrótu z długą inferencją (sekcja 19 MANUAL_TESTS).
 
 R-024 — wydanie 1.5.3: scripts/verify.ps1 zaliczone, format OK, Release 0 ostrzeżeń/błędów, 225 testów przeszło / 1 MF opt-in pominięty. Pięć testów okna przeszło. Instalator zbudowany przez scripts/build-installer.ps1 (Inno Setup 93 s), EXE aplikacji 1.5.3.0. MeetingAudioRecorder-Setup-1.5.3.exe: 355294437 B, SHA-256 3C7DFAE0687C82FEE4B77EDA554DCF364DBAFAADABEF7893208D2C17053348C1. Dowody: out/translation-progress-before.log, out/release-1.5.3-verify.log, out/release-1.5.3-installer.log. Nie instalowano nad działającą aplikacją. Test manualny Ctrl+Alt+T podczas długiej inferencji nadal wymagany.
+
+### R-025 — pełna historia i kopiowanie tłumaczeń (2026-11-07)
+
+Status: implementacja, weryfikacja automatyczna i budowa instalatora 1.5.4 zakończone.
+
+- Usunięto limit sześciu wpisów. Okno przechowuje wszystkie finalne wypowiedzi od początku bieżącej sesji tłumaczenia; kolejne wersje draftu zastępują tylko roboczą wypowiedź danego źródła.
+- Jeden tylko do odczytu RichTextBox umożliwia zaznaczenie między wypowiedziami, Ctrl+A i Ctrl+C. Przycisk Kopiuj całość kopiuje cały aktualnie prezentowany tekst (PL oraz EN, gdy włączony) bez zmiany zaznaczenia. Zajęty schowek pokazuje komunikat i pozwala ponowić.
+- Pionowy pasek przewijania ma 8 px. Nowe wpisy przewijają do końca tylko, gdy użytkownik jest na dole i nie zaznacza tekstu; podczas czytania początku lub zaznaczenia widok pozostaje na miejscu. Wskaźniki granic zaznaczenia zapobiegają obejmowaniu nowej wypowiedzi przez zaznaczenie starej treści.
+- Trzy nowe testy WPF nie przechodziły przed implementacją. Po zmianie 8/8 testów okna; pełne scripts/verify.ps1: format OK, build Release bez ostrzeżeń/błędów, 228 testów przeszło / 1 MF opt-in pominięty. Zweryfikowano zachowanie 30 finalnych wypowiedzi, draft/finał, zaznaczenie, zachowanie pozycji przy 100 wpisach oraz szerokość paska. Dowody: out/translation-history-before.log, out/release-1.5.4-verify.log.
+- Izolowana diagnostyka --translation-ui-smoke zakończona kodem 0; obejrzano out/translation-history-ui/overlay-history.png (historia, początek sesji, wąski pasek). Tylko syntetyczny tekst, bez capture i eksportu. Długotrwały test z prawdziwym tłumaczeniem i ręczne przeciąganie zaznaczenia pozostają do wykonania.
+- Brak zmian w źródłach audio, osi czasu i trwałej historii. Okno obejmuje bieżącą sesję tłumaczenia, nie rekonstruuje audio sprzed jej uruchomienia; wcześniejsze sesje nadal są dostępne w historii.
+
+R-025 — pakiet: MeetingAudioRecorder-Setup-1.5.4.exe, 355295542 B, SHA-256 B48FB6476FCE8CD1B04A23B80DDBD4B99451BD93C8892A634C6ED847238B307F. EXE aplikacji 1.5.4.0. Czysta publikacja i scripts/build-installer.ps1 zakończone (out/release-1.5.4-installer.log); bez instalacji nad działającą aplikacją.

@@ -99,3 +99,7 @@ Wydanie 1.5.2 z poprawkami R-023 zbudowane 2026-11-07; instalator w publish/inst
 ## Widoczność pracy — R-024, wersja 1.5.3
 
 Zastępuje zachowanie Stop z R-023: okno pozostaje widoczne podczas kończenia, pokazuje komunikat i animację; Zamknij jest dostępne po zakończeniu. Ukryj nadal chowa okno na żądanie. Przygotowanie jest widoczne już podczas sprawdzania modeli. Powtórny skrót/menu podczas przygotowania lub kończenia przywołuje stan bieżącej sesji. Nie uruchamia nowej sesji ani nie kolejkuje restartu; po komunikacie zakończenia można uruchomić tłumaczenie ponownie. Nie skrócono czasu pracy natywnego silnika.
+
+## Pełny tekst sesji — R-025, wersja 1.5.4
+
+Okno nie ogranicza już widoku do sześciu wypowiedzi. Read-only RichTextBox zachowuje całą bieżącą sesję tłumaczenia; pozwala zaznaczać wiele wypowiedzi, używać Ctrl+A/Ctrl+C oraz Kopiuj całość. EN jest prezentowany i kopiowany tylko przy włączonej widoczności oryginału. Draft jest zastępowany przez nową wersję/finał; finały pozostają. Automatyczne przewijanie działa tylko na dole bez zaznaczenia. Pasek pionowy ma 8 px. Pełna brama: 228 przeszło / 1 MF opt-in pominięty. Nie utożsamiaj pełnej sesji tłumaczenia z transkrypcją audio zarejestrowanego wcześniej przed uruchomieniem tłumacza.

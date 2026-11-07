@@ -74,7 +74,12 @@ internal static class TranslationDiagnostics
                 overlay.Status("Wyjście audio · tłumaczenie lokalne");
                 overlay.Add(new("output", 1, "We will review the results tomorrow.", "Jutro omówimy wyniki.", false, 100, 2000, "text"));
                 overlay.Add(new("output", 2, "We are currently working on", "Obecnie pracujemy nad", true, 2100, 4000, "text"));
-                await Render(overlay, Path.Combine(dir, "overlay.png")); overlay.Destroy();
+                await Render(overlay, Path.Combine(dir, "overlay.png"));
+                for (int i = 3; i <= 30; i++) overlay.Add(new("output", i, $"Example sentence {i}.", $"Przykładowa wypowiedź {i}.", false, i * 2000, i * 2000 + 1500, "text"));
+                var transcript = (System.Windows.Controls.RichTextBox)overlay.FindName("Transcript");
+                transcript.Selection.Select(transcript.Document.Blocks.FirstBlock.ContentStart, transcript.Document.Blocks.FirstBlock.ContentEnd);
+                transcript.ScrollToHome();
+                await Render(overlay, Path.Combine(dir, "overlay-history.png")); overlay.Destroy();
                 var config = new TranslationSettingsWindow(settings, _ => { }); config.Show(); await Render(config, Path.Combine(dir, "settings.png")); config.Close();
                 var store = new TranslationStore(Path.Combine(dir, "synthetic-history")); var session = new TranslationSession { Title = "Przegląd wyników — przykład" }; store.Create(session);
                 store.Append(session.Id, new("output", 1, "We will review the results tomorrow.", "Jutro omówimy wyniki.", false, 100, 2000, "text")); store.Complete(session.Id, "completed");

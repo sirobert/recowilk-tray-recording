@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -12,6 +13,7 @@ public partial class TranslationOverlay : Window
 {
     public sealed record Line(string Source, int Id, bool Draft, string Label, string Polish, string English, Visibility OriginalVisibility);
     private readonly ObservableCollection<Line> lines = [];
+    private readonly Dictionary<Line, Paragraph> paragraphs = [];
     private readonly Dictionary<string, int> finalized = [];
     private readonly Action stop;
     private readonly Action<TranslationOverlay> geometry;
@@ -19,7 +21,7 @@ public partial class TranslationOverlay : Window
     private bool showOriginal, allowClose, applying, finished, stopRequested, preparing;
     public TranslationOverlay(TranslationSettings settings, Action stop, Action<TranslationOverlay> geometry)
     {
-        InitializeComponent(); this.stop = stop; this.geometry = geometry; Lines.ItemsSource = lines;
+        InitializeComponent(); this.stop = stop; this.geometry = geometry;
         Apply(settings);
         saveTimer.Tick += (_, _) => { saveTimer.Stop(); geometry(this); };
         LocationChanged += (_, _) => ScheduleSave(); SizeChanged += (_, _) => ScheduleSave();
@@ -37,19 +39,45 @@ public partial class TranslationOverlay : Window
             Height = double.IsFinite(settings.Height) ? Math.Clamp(settings.Height, 120, Math.Max(120, SystemParameters.VirtualScreenHeight)) : 220;
             Left = double.IsFinite(settings.Left) ? Math.Clamp(settings.Left, SystemParameters.VirtualScreenLeft, Math.Max(SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth - Width)) : 80;
             Top = double.IsFinite(settings.Top) ? Math.Clamp(settings.Top, SystemParameters.VirtualScreenTop, Math.Max(SystemParameters.VirtualScreenTop, SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight - Height)) : 80;
-            for (int i = 0; i < lines.Count; i++) lines[i] = lines[i] with { OriginalVisibility = showOriginal ? Visibility.Visible : Visibility.Collapsed };
+            foreach (var line in lines) ((Run)paragraphs[line].Inlines.LastInline).Text = showOriginal ? "\n" + line.English : "";
         }
         finally { applying = false; }
     }
     public void Add(TranslationCaption caption)
     {
         if (caption.IsDraft && finalized.GetValueOrDefault(caption.Source) >= caption.Id) return;
-        foreach (var old in lines.Where(x => x.Source == caption.Source && (x.Draft || x.Id == caption.Id)).ToArray()) lines.Remove(old);
+        var selectionStart = Transcript.Selection.Start.GetPositionAtOffset(0, LogicalDirection.Backward);
+        var selectionEnd = Transcript.Selection.End.GetPositionAtOffset(0, LogicalDirection.Backward);
+        bool selected = !Transcript.Selection.IsEmpty;
+        bool follow = Transcript.Selection.IsEmpty && !Transcript.IsMouseCaptureWithin
+            && Transcript.ExtentHeight - Transcript.ViewportHeight - Transcript.VerticalOffset <= 2;
+        foreach (var old in lines.Where(x => x.Source == caption.Source && (x.Draft || x.Id == caption.Id)).ToArray()) RemoveLine(old);
         if (!caption.IsDraft) finalized[caption.Source] = caption.Id;
         string source = caption.Source == "output" ? "Rozmówcy · wyjście audio" : "Mikrofon";
-        lines.Add(new(caption.Source, caption.Id, caption.IsDraft, source + (caption.IsDraft ? " · wersja robocza" : ""), caption.Polish, caption.English, showOriginal ? Visibility.Visible : Visibility.Collapsed));
-        while (lines.Count > 6) lines.RemoveAt(0);
-        Scroll.ScrollToEnd();
+        var line = new Line(caption.Source, caption.Id, caption.IsDraft, source + (caption.IsDraft ? " · wersja robocza" : ""), caption.Polish, caption.English, showOriginal ? Visibility.Visible : Visibility.Collapsed);
+        lines.Add(line);
+        var paragraph = new Paragraph { Margin = new Thickness(0, 3, 0, 7) };
+        paragraph.Inlines.Add(new Run(line.Label) { FontSize = 10 });
+        paragraph.Inlines.Add(new LineBreak());
+        paragraph.Inlines.Add(new Run(line.Polish));
+        paragraph.Inlines.Add(new Run(showOriginal ? "\n" + line.English : ""));
+        paragraphs.Add(line, paragraph); Transcript.Document.Blocks.Add(paragraph);
+        if (selected) Transcript.Selection.Select(selectionStart, selectionEnd);
+        if (follow) Transcript.ScrollToEnd();
+    }
+    private void RemoveLine(Line line)
+    {
+        Transcript.Document.Blocks.Remove(paragraphs[line]); paragraphs.Remove(line); lines.Remove(line);
+    }
+    private void CopyAll(object sender, RoutedEventArgs e)
+    {
+        var text = new TextRange(Transcript.Document.ContentStart, Transcript.Document.ContentEnd).Text;
+        if (string.IsNullOrWhiteSpace(text)) return;
+        try { Clipboard.SetText(text); }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+            MessageBox.Show("Schowek jest zajęty. Spróbuj skopiować ponownie.", "Kopiowanie", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
     public void Status(string text) { if (!stopRequested && !finished) StatusLabel.Text = text; }
     public void BeginPreparing()
@@ -76,7 +104,7 @@ public partial class TranslationOverlay : Window
     {
         finished = true; preparing = false; StopButton.Content = "Zamknij"; StopButton.IsEnabled = true;
         BusyIndicator.Visibility = Visibility.Collapsed;
-        foreach (var row in lines.Where(x => x.Draft).ToArray()) lines.Remove(row);
+        foreach (var row in lines.Where(x => x.Draft).ToArray()) RemoveLine(row);
         StatusLabel.Text = status;
     }
     public void Destroy() { saveTimer.Stop(); allowClose = true; Close(); }
