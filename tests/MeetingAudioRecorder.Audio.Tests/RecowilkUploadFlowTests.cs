@@ -12,6 +12,25 @@ public sealed class RecowilkUploadFlowTests : IDisposable
 {
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "mar-recowilk-" + Guid.NewGuid().ToString("N"));
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Live_activity_is_cleared_after_success_or_failure(bool fail)
+    {
+        var audio = await WriteAudioAsync(1000);
+        await using var queue = CreateQueue(new ScriptedHandler(request => Task.FromResult(fail
+            ? new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) : StandardResponse(request))), new MutableSettings("https://minuteo.example"));
+        var activity = new List<Guid?>();
+        queue.ActivityChanged += (_, _) => activity.Add(queue.ActiveRecordingId);
+        queue.ActivityChanged += (_, _) => throw new InvalidOperationException("Broken UI observer must not fail the upload");
+        Assert.Null(queue.ActiveRecordingId);
+        queue.Enqueue(Completed(audio));
+        await queue.ProcessPendingOnceAsync();
+        Assert.Equal(new Guid?[] { Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), null }, activity);
+        Assert.Null(queue.ActiveRecordingId);
+        if (!fail) Assert.Empty(Directory.EnumerateFiles(_directory, "*.upload"));
+    }
+
     [Fact]
     public async Task Full_upload_is_tenant_bound_encrypted_and_keeps_local_mp3()
     {

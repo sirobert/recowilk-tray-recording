@@ -23,6 +23,7 @@ public partial class TranslationController : ObservableObject
     private int generation;
     private Guid? activeId;
     [ObservableProperty] private string menuText = "Rozpocznij tłumaczenie";
+    [ObservableProperty] private TranslationActivity activity = new();
     public TranslationController(ISettingsService settings, ILogger<HotkeyService> logger, IntPtr hwnd)
     {
         this.settings = settings; hotkey = new HotkeyService(logger, 0xBEE3); hotkey.Attach(hwnd);
@@ -36,11 +37,12 @@ public partial class TranslationController : ObservableObject
         if (shuttingDown) return;
         if (starting || stopping) { overlay?.Show(); return; }
         if (running is not null) { await StopAsync(); return; }
-        starting = true;
+        starting = true; Activity = new(TranslationActivityState.Starting);
         try
         {
             var snapshot = settings.Current;
             var config = snapshot.Translation;
+            Activity = new(TranslationActivityState.Starting, config.OutputEnabled ? (config.MicrophoneEnabled ? "wyjście + mikrofon" : "wyjście") : "mikrofon");
             var validation = SettingsValidator.Validate(snapshot);
             if (!validation.IsValid) throw new InvalidOperationException(string.Join(" ", validation.Errors));
             var executable = Path.Combine(AppContext.BaseDirectory, "TranslationWorker", "MeetingAudioRecorder.TranslationWorker.exe");
@@ -71,22 +73,44 @@ public partial class TranslationController : ObservableObject
         }
         catch (Exception ex)
         {
+            Activity = Activity with { State = TranslationActivityState.Error, Detail = ex.Message };
             overlay?.Finish("Nie udało się uruchomić: " + ex.Message);
             MessageBox.Show(ex.Message, "Tłumaczenie", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
-        finally { starting = false; if (running is null) MenuText = "Rozpocznij tłumaczenie"; }
+        finally
+        {
+            starting = false;
+            if (running is null)
+            {
+                MenuText = "Rozpocznij tłumaczenie";
+                if (Activity.State == TranslationActivityState.Starting) Activity = new();
+            }
+        }
     }
     private async Task RunSessionAsync(TranslationSession session, AppSettings snapshot, string executable, int current, CancellationTokenSource cancellation)
     {
-        var clock = Stopwatch.StartNew(); int failed = 0;
+        var clock = Stopwatch.StartNew(); int failed = 0, ready = 0;
+        int expected = (snapshot.Translation.OutputEnabled ? 1 : 0) + (snapshot.Translation.MicrophoneEnabled ? 1 : 0);
         async Task Source(string source, string device)
         {
-            double offset = 0;
+            double offset = 0; bool sourceReady = false;
             try
             {
                 await new LocalTranslationWorker(executable).RunAsync(new(snapshot.Translation.ModelsDirectory, snapshot.Translation.Turbo, source, device), e =>
                 {
-                    if (e.Kind == "ready") offset = clock.Elapsed.TotalMilliseconds;
+                    if (e.Kind == "ready")
+                    {
+                        offset = clock.Elapsed.TotalMilliseconds;
+                        if (!sourceReady)
+                        {
+                            sourceReady = true;
+                            if (Interlocked.Increment(ref ready) == expected) Post(current, () =>
+                            {
+                                if (Activity.State == TranslationActivityState.Starting && !stopping)
+                                    Activity = Activity with { State = TranslationActivityState.Running };
+                            });
+                        }
+                    }
                     if (e.Caption is { } caption)
                     {
                         var timed = caption with { StartMs = caption.StartMs + offset, EndMs = caption.EndMs + offset };
@@ -97,7 +121,12 @@ public partial class TranslationController : ObservableObject
                 }, cancellation.Token);
             }
             catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
-            catch (Exception ex) { Interlocked.Exchange(ref failed, 1); cancellation.Cancel(); Post(current, () => overlay?.Status("Błąd: " + ex.Message)); throw; }
+            catch (Exception ex)
+            {
+                Interlocked.Exchange(ref failed, 1); cancellation.Cancel();
+                Post(current, () => { Activity = Activity with { State = TranslationActivityState.Error, Detail = ex.Message }; overlay?.Status("Błąd: " + ex.Message); });
+                throw;
+            }
         }
         try
         {
@@ -111,10 +140,12 @@ public partial class TranslationController : ObservableObject
     private async Task ObserveSessionAsync(Task task, int current)
     {
         string result = "Zatrzymano · zapisano lokalnie. Możesz uruchomić tłumaczenie ponownie.";
+        string? error = null;
         try { await task; }
-        catch (Exception ex) { result = "Przerwano: " + ex.Message; }
+        catch (Exception ex) { error = ex.Message; result = "Przerwano: " + ex.Message; }
         await Application.Current.Dispatcher.InvokeAsync(() => { });
         if (current != generation) return;
+        Activity = error is null ? new() : Activity with { State = TranslationActivityState.Error, Detail = error };
         overlay?.Finish(result); MenuText = "Rozpocznij tłumaczenie";
         running = null; stopping = false; activeId = null; stop?.Dispose(); stop = null;
     }
@@ -123,7 +154,9 @@ public partial class TranslationController : ObservableObject
     public async Task StopAsync()
     {
         var task = running; if (task is null) return;
-        stopping = true; MenuText = "Kończenie tłumaczenia…"; overlay?.BeginStopping(); stop?.Cancel();
+        stopping = true;
+        if (Activity.State != TranslationActivityState.Error) Activity = Activity with { State = TranslationActivityState.Stopping };
+        MenuText = "Kończenie tłumaczenia…"; overlay?.BeginStopping(); stop?.Cancel();
         try { await task; } catch { /* Observer displays error and keeps saved segments. */ }
     }
     [RelayCommand] private void Show() { overlay?.Show(); }

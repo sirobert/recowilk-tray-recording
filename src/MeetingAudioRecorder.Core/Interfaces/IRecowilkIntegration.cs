@@ -12,6 +12,8 @@ public interface IRecowilkCredentialStore
 
 public interface IRecowilkUploadQueue : IAsyncDisposable
 {
+    Guid? ActiveRecordingId { get; }
+    event EventHandler? ActivityChanged;
     void Start();
     void Enqueue(RecordingCompletedEventArgs completed);
     RecordingRetryResult RetryExport(Guid recordingId);

@@ -31,6 +31,20 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
     private int _started;
     private int _disposed;
     private int _reactivateWaiting;
+    private sealed record Execution(Guid RecordingId);
+    private Execution? _execution;
+    public Guid? ActiveRecordingId => Volatile.Read(ref _execution)?.RecordingId;
+    public event EventHandler? ActivityChanged;
+
+    private void SetActivity(Guid? recordingId)
+    {
+        Volatile.Write(ref _execution, recordingId is { } id ? new Execution(id) : null);
+        foreach (var handler in ActivityChanged?.GetInvocationList() ?? [])
+        {
+            try { ((EventHandler)handler)(this, EventArgs.Empty); }
+            catch (Exception ex) { _logger.LogDebug(ex, "Observer stanu wysyłki zgłosił błąd"); }
+        }
+    }
 
     public RecowilkUploadQueue(IHttpClientFactory httpClientFactory, ISettingsService settings,
         IRecowilkCredentialStore credentials, ILogger<RecowilkUploadQueue> logger)
@@ -158,6 +172,7 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
                 if (item.NextAttemptAt > DateTimeOffset.UtcNow) continue;
                 try
                 {
+                    SetActivity(item.RecordingId);
                     ValidateLocalFile(item.AudioPath);
                     item.LastAttemptAt = DateTimeOffset.UtcNow;
                     UpdateCatalog(item, RecordingExportStatus.Connecting);
@@ -178,6 +193,7 @@ public sealed class RecowilkUploadQueue : IRecowilkUploadQueue
                         ex is RecowilkApiException apiError ? (int)apiError.StatusCode : null,
                         ex is RecowilkApiException apiTrace ? apiTrace.TraceId : null, item.Attempts);
                 }
+                finally { SetActivity(null); }
             }
         }
         finally { _processGate.Release(); }

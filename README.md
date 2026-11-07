@@ -19,7 +19,7 @@ Kontekst dla kolejnych autorów i asystentów: [przekazanie tłumaczeń live](do
 
 Menu zasobnika → **Rozpocznij tłumaczenie** lub domyślnie **Ctrl+Alt+T**. Ten sam skrót zatrzymuje sesję. W **Ustawieniach tłumaczenia** można zmienić skrót, włączyć wyjście audio, mikrofon lub oba źródła, wybrać model oraz wygląd okna. Urządzenia są tymi samymi, które wybrano i zapisano w głównych ustawieniach Recordera. Start tłumaczenia nie rozpoczyna nagrywania MP3.
 
-Okno napisów jest zawsze na wierzchu, przesuwalne za górny pasek i skalowalne. Domyślna czcionka ma 14 jednostek WPF. Można zmieniać krój, rozmiar, kolory i krycie tła oraz pokazać EN obok/pod PL. „Ukryj” pozostawia tłumaczenie aktywne; „Pokaż okno tłumaczenia” przywraca panel. „Stop” domyka frazę. Roboczy tekst zmienia się podczas mówienia; do historii trafiają wyłącznie finalne frazy. Kontekst jest dzielony po pauzie lub po 20 s ciągłego audio.
+Okno napisów jest zawsze na wierzchu, przesuwalne za górny pasek i skalowalne. Domyślna czcionka ma 14 jednostek WPF. Można zmieniać krój, rozmiar, kolory i krycie tła oraz pokazać EN obok/pod PL. „Ukryj” pozostawia tłumaczenie aktywne; „Pokaż napisy” przywraca panel. „Stop” domyka frazę. Roboczy tekst zmienia się podczas mówienia; do historii trafiają wyłącznie finalne frazy. Kontekst jest dzielony po pauzie lub po 20 s ciągłego audio.
 
 **Tłumaczenia live — historia lokalna** pokazuje sesje, EN/PL, czas i źródło. Dostępne są oddzielne filtry tytułu sesji oraz tekstu EN/PL. Zaznaczone komórki można kopiować Ctrl+C. Czas jest przybliżonym czasem fragmentu, nie wyrównaniem każdego słowa. „Mikrofon” i „Wyjście” oznaczają urządzenie, nie tożsamość osoby.
 
@@ -37,7 +37,7 @@ Każde włączone źródło ma osobny proces tłumacza i własny kontekst. Dwa �
 
 ## Funkcje
 
-- Praca w **system tray** (ikona stanu: gotowość / nagrywanie / przetwarzanie / błąd)
+- Praca w **system tray** (osobne statusy nagrywania, tłumaczenia i wysyłki)
 - Globalny skrót (domyślnie **Ctrl+Alt+R**) przez `RegisterHotKey`
 - Wybór mikrofonu i urządzenia wyjściowego po stabilnym **ID endpointu**
 - Równoległy zapis do tymczasowych WAV → miks → MP3 (Media Foundation)
@@ -48,7 +48,7 @@ Każde włączone źródło ma osobny proces tłumacza i własny kontekst. Dwa �
 - Logi z rotacją (bez treści audio)
 - Opcjonalna automatyka Google Meet: Calendar lub rozszerzenie wskazuje spotkanie, a obecność użytkownika steruje startem i stopem
 - Opcjonalna integracja RecoWilk wysyłająca gotowy MP3 po bezpiecznym, wznawialnym uploadzie
-- Lokalne okno **Nagrania i eksport** z metadanymi, uczestnikami, postępem, błędami i ręcznym ponawianiem eksportu
+- Lokalne okno **Lista nagrań** lub **Kolejka i błędy eksportu** z metadanymi, uczestnikami, postępem, błędami i ręcznym ponawianiem eksportu
 
 ---
 
@@ -173,8 +173,8 @@ dotnet test MeetingAudioRecorder.sln -c Release
 3. **Testuj mikrofon** — mów, obserwuj pasek poziomu.
 4. **Testuj przechwytywanie dźwięku** — odtwórz dźwięk na słuchawkach, obserwuj poziom.
 5. Zapisz ustawienia.
-6. Naciśnij **Ctrl+Alt+R** (lub menu tray) — start nagrywania (ikona zmienia kolor).
-7. Wybierz z tray **Nagrania i eksport**, aby zobaczyć lokalną historię, metadane i stan wysyłania do RecoWilk.
+6. Naciśnij **Ctrl+Alt+R** (lub menu tray) — start nagrywania (na ikonie pojawia się czerwona kropka).
+7. Wybierz z tray **Lista nagrań** lub **Kolejka i błędy eksportu**, aby zobaczyć lokalną historię, metadane i stan wysyłania do RecoWilk.
 7. Ponownie **Ctrl+Alt+R** — stop, przetwarzanie, plik MP3 w folderze nagrań  
    (domyślnie `Dokumenty\Nagrania spotkań`).
 
@@ -341,3 +341,9 @@ audio nie są zapisywane w logach.
 Użytkownik odpowiada za zgodność nagrywania z prawem i regulaminami platform (Meet, Teams, Zoom) oraz za uzyskanie zgód uczestników.
 
 Budowanie instalatora wymaga sprawdzonego eksportu Marian: domyślnie Models\marian w profilu użytkownika albo folder wskazany zmienną RECORDER_MARIAN_MODELS. Skrypt publikacji sprawdza wszystkie hashe i dołącza pliki w TranslationModels\marian. Wagi nie są przechowywane w Git.
+
+## Statusy w zasobniku — od wersji 1.5.5
+
+Ikona ma stałe niebieskie tło. Czerwona kropka oznacza nagrywanie, turkusowe T — uruchamianie, pracę lub kończenie tłumacza. Oba znaczniki mogą być widoczne równocześnie. Żółty wykrzyknik sygnalizuje problem nagrywania, tłumaczenia lub wysyłki; nie zastępuje znaczników aktywności. Po zapisaniu nagrania aplikacja wraca do gotowości zamiast pozostawać zielona; potwierdzenie zapisu pozostaje powiadomieniem.
+
+Najedź na ikonę, aby zobaczyć wszystkie statusy, czas nagrania i źródła aktywnego tłumacza. Menu ma sekcje Nagrywanie, Tłumaczenie, Wysyłka i Aplikacja. Wysyłka pokazuje liczbę rzeczywiście obsługiwanych plików i postęp chunków, oczekujących oraz wymagających uwagi. Stary etap eksportu zapisany przed restartem nie jest traktowany jako bieżąca transmisja. Kolejka i błędy eksportu otwiera istniejące centrum nagrań/eksportu. Nie zmienia to działania skrótów ani lokalnego zapisu danych.

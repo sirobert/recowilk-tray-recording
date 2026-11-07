@@ -325,3 +325,14 @@ Pierwsza próba zapisuje zaszyfrowane finalne frazy w katalogu `isolated-transla
 
 ## 20. Pierwsze przygotowanie modeli (1.5.1)
 Na nowym profilu: Start tłumaczenia → Pobierz; sprawdź postęp, anulowanie, ponowienie i start napisów po zakończeniu. Powtórz bez Internetu przy komplecie modeli. W ustawieniach wybierz Turbo i pobierz tylko brakujący model. Sprawdź błędną ścieżkę, brak miejsca i zerwanie sieci: błąd ma pozostać w oknie, Recorder nadal nagrywa. Test interaktywny nie został wykonany automatycznie.
+
+## 21. Równoległe statusy tray (1.5.5)
+
+1. Po starcie sprawdź gotowość nagrywania, wyłączone tłumaczenie i rzeczywisty stan kolejki w menu/podpowiedzi.
+2. Uruchom nagrywanie i tłumaczenie obu źródeł. Czerwona kropka i T są widoczne razem; czas aktualizuje się bez kasowania statusu tłumaczenia.
+3. Zatrzymaj sam tłumacz: stan kończenia, potem wyłączony, nagrywanie nadal trwa. Zatrzymaj nagranie: gotowość i powiadomienie zapisu, bez trwałego zielonego tła.
+4. Wywołaj błąd źródła tłumaczenia podczas nagrywania. Żółty wykrzyknik nie zasłania czerwonej kropki; podpowiedź wskazuje funkcję z błędem.
+5. Na testowej instancji RecoWilk sprawdź wysyłkę, postęp chunków, oczekiwanie i błąd. Po restarcie stary wpis Uploading nie oznacza pracy, zanim worker go nie podejmie. Wyłącz kolejkę podczas pracy: pokaż wyłączoną kolejkę i ewentualnie nadal kończącą się transmisję.
+6. Sprawdź podpowiedź, menu, 100/150/200% DPI, jasny/ciemny pasek systemowy i zamknięcie aplikacji podczas aktualizacji statusów.
+
+Wynik zapisz wraz z wersją Windows, DPI, urządzeniami i aktywnymi funkcjami. Powyższa lista nie oznacza wykonania testu sprzętowego.

@@ -23,6 +23,7 @@ public partial class App : Application
     private ISingleInstanceService? _singleInstance;
     private TaskbarIcon? _tray;
     private TrayIconController? _trayIcons;
+    private TrayUploadMonitor? _trayUploads;
     private HotkeyService? _hotkeyService;
     private HostWindow? _hostWindow;
     private SettingsWindow? _settingsWindow;
@@ -106,9 +107,16 @@ public partial class App : Application
 
         var trayVm = _services.GetRequiredService<TrayViewModel>();
         trayVm.Translation = _translation;
-        _tray.DataContext = trayVm;
-        _tray.IconSource = TrayIconController.CreateIcon(AppRecordingState.Idle);
         _trayIcons = new TrayIconController(_tray);
+        trayVm.Activity = _trayIcons;
+        _tray.DataContext = trayVm;
+        _translation.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(TranslationController.Activity)) _trayIcons.UpdateTranslation(_translation.Activity);
+        };
+        _trayIcons.UpdateTranslation(_translation.Activity);
+        _trayUploads = new TrayUploadMonitor(_services.GetRequiredService<IRecordingCatalog>(), settingsService,
+            _services.GetRequiredService<IRecowilkUploadQueue>(), _trayIcons);
 
         var coordinator = _services.GetRequiredService<IRecordingCoordinator>();
         var recowilkUploads = _services.GetRequiredService<IRecowilkUploadQueue>();
@@ -335,6 +343,8 @@ public partial class App : Application
         {
             if (_translation is not null) await _translation.ShutdownAsync();
             _hotkeyService?.Dispose();
+            _trayUploads?.Dispose();
+            _trayIcons?.Dispose();
             _tray?.Dispose();
 
             var meetingAutomation = _services?.GetService<IMeetingAutomationService>();

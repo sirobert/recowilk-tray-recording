@@ -15,6 +15,11 @@ internal static class TranslationDiagnostics
     {
         try
         {
+            if (args[0] == "--translation-tray-smoke" && args.Length == 2)
+            {
+                await TrayDiagnostics.RunAsync(Path.GetFullPath(args[1]));
+                Application.Current.Shutdown(0); return;
+            }
             if (args[0] == "--translation-model-smoke" && args.Length == 2)
             {
                 var dir = Path.GetFullPath(args[1]); Directory.CreateDirectory(dir);

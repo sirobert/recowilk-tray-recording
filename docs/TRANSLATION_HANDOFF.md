@@ -103,3 +103,7 @@ Zastępuje zachowanie Stop z R-023: okno pozostaje widoczne podczas kończenia, 
 ## Pełny tekst sesji — R-025, wersja 1.5.4
 
 Okno nie ogranicza już widoku do sześciu wypowiedzi. Read-only RichTextBox zachowuje całą bieżącą sesję tłumaczenia; pozwala zaznaczać wiele wypowiedzi, używać Ctrl+A/Ctrl+C oraz Kopiuj całość. EN jest prezentowany i kopiowany tylko przy włączonej widoczności oryginału. Draft jest zastępowany przez nową wersję/finał; finały pozostają. Automatyczne przewijanie działa tylko na dole bez zaznaczenia. Pasek pionowy ma 8 px. Pełna brama: 228 przeszło / 1 MF opt-in pominięty. Nie utożsamiaj pełnej sesji tłumaczenia z transkrypcją audio zarejestrowanego wcześniej przed uruchomieniem tłumacza.
+
+## Status tłumacza w tray — R-026, wersja 1.5.5
+
+TranslationController.Activity jest typowanym stanem niezależnym od nagrywania. Uruchamianie obejmuje weryfikację/ładowanie modeli; Running wymaga ready od wszystkich wybranych źródeł. Kończenie/błąd nie może zostać nadpisane spóźnionym ready. TrayIconController scala stany na dispatcherze: aktualizacja czasu nagrania nie kasuje stanu tłumacza ani wysyłki. Ikona ma niezależne znaczniki; T pozostaje w trakcie uruchamiania i kończenia, szczegóły są w podpowiedzi/menu. Diagnostyka --translation-tray-smoke jest izolowana i nie uruchamia produkcyjnego startupu.

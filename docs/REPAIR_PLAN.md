@@ -589,3 +589,16 @@ Status: implementacja, weryfikacja automatyczna i budowa instalatora 1.5.4 zako�
 - Brak zmian w źródłach audio, osi czasu i trwałej historii. Okno obejmuje bieżącą sesję tłumaczenia, nie rekonstruuje audio sprzed jej uruchomienia; wcześniejsze sesje nadal są dostępne w historii.
 
 R-025 — pakiet: MeetingAudioRecorder-Setup-1.5.4.exe, 355295542 B, SHA-256 B48FB6476FCE8CD1B04A23B80DDBD4B99451BD93C8892A634C6ED847238B307F. EXE aplikacji 1.5.4.0. Czysta publikacja i scripts/build-installer.ps1 zakończone (out/release-1.5.4-installer.log); bez instalacji nad działającą aplikacją.
+
+### R-026 — niezależne statusy funkcji w tray (2026-11-08)
+
+Status: implementacja, pełna weryfikacja i instalator 1.5.5 zakończone.
+
+- Stała niebieska ikona z niezależnymi znacznikami: czerwone nagrywanie, turkusowe T (start/praca/kończenie tłumacza), żółty wykrzyknik (wymagana uwaga). Gotowe nagranie wraca do gotowości; bez trwałego zielonego stanu. Istniejące powiadomienia zapisu pozostają.
+- Cztery sekcje menu: nagrywanie, tłumaczenie, wysyłka, aplikacja. Pełna podpowiedź WPF pokazuje statusy równocześnie, czas i źródła tłumacza; nie jest ograniczona długością natywnego tekstu ikony. Długie nagłówki menu są skracane z podpowiedzią pełnego tekstu.
+- Tłumacz publikuje typowane stany: wyłączony, uruchamianie, działa, kończenie, błąd. Działa dopiero po gotowości wszystkich włączonych źródeł; późne ready nie nadpisuje kończenia/błędu.
+- Wysyłka łączy katalog z bieżącym ActiveRecordingId workera. Zapisany etap Uploading po restarcie jest oczekiwaniem, nie pozorną transmisją. Zdarzenia aktywności są czyszczone w finally (także po błędzie/anulowaniu); wyjątek obserwatora nie zmienia eksportu. Odczyt katalogu odbywa się poza UI, powiadomienia są łączone co 300 ms; monitor odłącza się przy wyjściu. Brak zmian retencji audio, protokołu HTTP i danych wysyłanych do serwera.
+- Testy przed implementacją zgłaszały brak kontraktu statusów/aktywności. Po implementacji 9 testów agregacji oraz 2 integracyjne testy aktywności uploadu przeszły. Pełne scripts/verify.ps1: format OK, Release 0 ostrzeżeń/błędów, 239 przeszło / 1 MF opt-in pominięty. Dowody: out/tray-status-before.log, out/tray-upload-before.log, out/release-1.5.5-verify.log.
+- Izolowana diagnostyka --translation-tray-smoke: kod 0, sprawdzone aktualizacje z tła i wiązania trzech statusów w rzeczywistym menu. Obejrzano out/tray-status-ui/states.png i menu.png (16/32 px, oba znaczniki i błąd). Syntetyczne dane, bez capture, katalogu użytkownika i sieci. Scenariusze rzeczywistego tray z równoległymi funkcjami i DPI pozostają w MANUAL_TESTS.
+
+R-026 — pakiet: MeetingAudioRecorder-Setup-1.5.5.exe, 355309539 B, SHA-256 99DF6BF0FCDCDA8DFB8636C97854B3704AD97DB3CD09A0EB531657A707E8334A. EXE aplikacji 1.5.5.0. Czysta publikacja i Inno Setup zakończone (out/release-1.5.5-installer.log). Nie aktualizowano działającej instalacji.

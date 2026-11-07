@@ -12,6 +12,7 @@ namespace MeetingAudioRecorder.App.ViewModels;
 public partial class TrayViewModel : ObservableObject
 {
     public MeetingAudioRecorder.App.Services.TranslationController? Translation { get; set; }
+    public MeetingAudioRecorder.App.Services.TrayIconController? Activity { get; set; }
     private readonly IRecordingCoordinator _coordinator;
     private readonly ISettingsService _settingsService;
     private readonly INotificationService _notificationService;
