@@ -7,10 +7,53 @@ namespace MeetingAudioRecorder.Audio.Tests;
 
 public class TranslationOverlayTests
 {
+    [Fact]
+    public async Task PreparationIsVisibleBeforeWorkerStarts()
+    {
+        await OnSta(() =>
+        {
+            var window = new TranslationOverlay(new TranslationSettings(), () => { }, _ => { });
+            try
+            {
+                window.BeginPreparing();
+                Assert.True(window.IsVisible);
+                Assert.False(((Button)window.FindName("StopButton")).IsEnabled);
+                Assert.Equal(Visibility.Visible, ((ProgressBar)window.FindName("BusyIndicator")).Visibility);
+                Assert.Contains("Sprawdzam modele", ((TextBlock)window.FindName("StatusLabel")).Text);
+                window.BeginRunning();
+                Assert.True(((Button)window.FindName("StopButton")).IsEnabled);
+                window.Status("Nasłuchiwanie");
+                Assert.Equal("Nasłuchiwanie", ((TextBlock)window.FindName("StatusLabel")).Text);
+            }
+            finally { window.Destroy(); }
+        });
+    }
+
+    [Fact]
+    public async Task StopFromHiddenWindowRevealsProgressUntilCompletion()
+    {
+        await OnSta(() =>
+        {
+            var window = new TranslationOverlay(new TranslationSettings(), () => { }, _ => { });
+            try
+            {
+                window.Show(); window.Hide(); window.BeginStopping();
+                Assert.True(window.IsVisible);
+                Assert.Equal(Visibility.Visible, ((ProgressBar)window.FindName("BusyIndicator")).Visibility);
+                window.Hide(); window.Show();
+                Assert.Contains("Kończę", ((TextBlock)window.FindName("StatusLabel")).Text);
+                window.Finish("Zatrzymano"); window.Status("Opóźniony status");
+                Assert.Equal("Zatrzymano", ((TextBlock)window.FindName("StatusLabel")).Text);
+                Assert.Equal(Visibility.Collapsed, ((ProgressBar)window.FindName("BusyIndicator")).Visibility);
+            }
+            finally { window.Destroy(); }
+        });
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task StopButtonDismissesWindowEvenAfterSourceFailure(bool finished)
+    public async Task StopKeepsProgressVisibleButCompletedSessionCanBeDismissed(bool finished)
     {
         await OnSta(() =>
         {
@@ -22,8 +65,20 @@ public class TranslationOverlayTests
                 if (finished) window.Finish("Błąd źródła audio");
                 var button = FindButtons(window).Single(b => b.Content?.ToString()?.Contains("Stop") == true || b.Content?.ToString() == "Zamknij");
                 button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                Assert.False(window.IsVisible);
+                Assert.Equal(!finished, window.IsVisible);
                 Assert.Equal(finished ? 0 : 1, stops);
+                if (!finished)
+                {
+                    Assert.False(button.IsEnabled);
+                    Assert.Contains("Kończę", ((TextBlock)window.FindName("StatusLabel")).Text);
+                    window.Status("Mikrofon: nasłuchiwanie");
+                    Assert.Contains("Kończę", ((TextBlock)window.FindName("StatusLabel")).Text);
+                    window.Finish("Zatrzymano");
+                    Assert.True(button.IsEnabled);
+                    button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    Assert.False(window.IsVisible);
+                    Assert.Equal(1, stops);
+                }
             }
             finally { window.Destroy(); }
         });
@@ -39,8 +94,12 @@ public class TranslationOverlayTests
             try
             {
                 window.Show(); window.Close();
-                Assert.False(window.IsVisible);
+                Assert.True(window.IsVisible);
                 Assert.Equal(1, stops);
+                window.Close();
+                Assert.Equal(1, stops);
+                window.Finish("Zatrzymano"); window.Close();
+                Assert.False(window.IsVisible);
             }
             finally { window.Destroy(); }
         });

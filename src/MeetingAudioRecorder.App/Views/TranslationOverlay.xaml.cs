@@ -16,7 +16,7 @@ public partial class TranslationOverlay : Window
     private readonly Action stop;
     private readonly Action<TranslationOverlay> geometry;
     private readonly DispatcherTimer saveTimer = new() { Interval = TimeSpan.FromMilliseconds(700) };
-    private bool showOriginal, allowClose, applying, finished, stopRequested;
+    private bool showOriginal, allowClose, applying, finished, stopRequested, preparing;
     public TranslationOverlay(TranslationSettings settings, Action stop, Action<TranslationOverlay> geometry)
     {
         InitializeComponent(); this.stop = stop; this.geometry = geometry; Lines.ItemsSource = lines;
@@ -51,12 +51,33 @@ public partial class TranslationOverlay : Window
         while (lines.Count > 6) lines.RemoveAt(0);
         Scroll.ScrollToEnd();
     }
-    public void Status(string text) => StatusLabel.Text = text;
+    public void Status(string text) { if (!stopRequested && !finished) StatusLabel.Text = text; }
+    public void BeginPreparing()
+    {
+        preparing = true; StopButton.IsEnabled = false; StopButton.Content = "Przygotowanie…";
+        BusyIndicator.Visibility = Visibility.Visible;
+        StatusLabel.Text = "Sprawdzam modele tłumaczenia…";
+        Show();
+    }
+    public void BeginRunning()
+    {
+        preparing = false; StopButton.IsEnabled = true; StopButton.Content = "■ Stop";
+        BusyIndicator.Visibility = Visibility.Collapsed;
+        StatusLabel.Text = "Ładowanie tłumacza…";
+    }
+    public void BeginStopping()
+    {
+        stopRequested = true; StopButton.IsEnabled = false; StopButton.Content = "Kończenie…";
+        BusyIndicator.Visibility = Visibility.Visible;
+        StatusLabel.Text = "Kończę frazę i zapisuję… Poczekaj na zakończenie przed ponownym startem.";
+        if (!IsVisible) Show();
+    }
     public void Finish(string status)
     {
-        finished = true; StopButton.Content = "Zamknij";
+        finished = true; preparing = false; StopButton.Content = "Zamknij"; StopButton.IsEnabled = true;
+        BusyIndicator.Visibility = Visibility.Collapsed;
         foreach (var row in lines.Where(x => x.Draft).ToArray()) lines.Remove(row);
-        Status(status);
+        StatusLabel.Text = status;
     }
     public void Destroy() { saveTimer.Stop(); allowClose = true; Close(); }
     private void ScheduleSave() { if (!applying && IsLoaded) { saveTimer.Stop(); saveTimer.Start(); } }
@@ -65,8 +86,9 @@ public partial class TranslationOverlay : Window
     private void StopTranslation(object sender, RoutedEventArgs e) => Dismiss();
     private void Dismiss()
     {
-        Hide();
-        if (!finished && !stopRequested) { stopRequested = true; stop(); }
+        if (finished) { Hide(); return; }
+        if (preparing || stopRequested) return;
+        BeginStopping(); stop();
     }
     protected override void OnClosing(CancelEventArgs e) { if (!allowClose) { e.Cancel = true; Dismiss(); } base.OnClosing(e); }
 }

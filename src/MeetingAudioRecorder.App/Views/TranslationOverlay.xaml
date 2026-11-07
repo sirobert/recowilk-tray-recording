@@ -5,9 +5,10 @@
  Topmost="True" ShowInTaskbar="False" ShowActivated="False">
  <Border x:Name="Surface" CornerRadius="8" Padding="10" BorderBrush="#66777777" BorderThickness="1">
   <DockPanel>
+   <ProgressBar x:Name="BusyIndicator" DockPanel.Dock="Top" Height="3" Margin="0,0,0,6" IsIndeterminate="True" Visibility="Collapsed"/>
    <Grid DockPanel.Dock="Top" Background="Transparent" MouseLeftButtonDown="MoveWindow" Margin="0,0,0,6">
     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-    <TextBlock x:Name="StatusLabel" Text="Ładowanie tłumacza…" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+    <TextBlock x:Name="StatusLabel" Text="Ładowanie tłumacza…" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
     <Button Grid.Column="1" Content="Ukryj" Click="HideWindow" FontSize="11" Padding="6,1" Margin="6,0"/>
     <Button x:Name="StopButton" Grid.Column="2" Content="■ Stop" Click="StopTranslation" FontSize="11" Padding="6,1"/>
    </Grid>

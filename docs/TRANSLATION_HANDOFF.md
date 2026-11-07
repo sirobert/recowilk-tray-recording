@@ -95,3 +95,7 @@ Stop natychmiast chowa okno i zleca zatrzymanie tłumaczenia; zakończenie zapis
 Uzupełnienie R-023: użytkownik podał HRESULT 0x88890004 (AUDCLNT_E_DEVICE_INVALIDATED). Dodano maksymalnie dwa ponowienia tego samego endpointu co 500 ms, tylko przed pierwszym odebranym audio, oraz opis błędu z nazwą źródła i wskazówką ponownego uruchomienia. Nie wznawiamy w środku frazy ani nie przełączamy urządzenia automatycznie. Kod nie rozstrzyga, czy przyczyną było odłączenie czy rekonfiguracja Bluetooth. Pełna brama: 223 testy przeszło, 1 MF opt-in pominięty; fizyczne odłączenie pozostaje do testu. Instalacja nadal 1.5.0.
 
 Wydanie 1.5.2 z poprawkami R-023 zbudowane 2026-11-07; instalator w publish/installer. Pełna weryfikacja i suma kontrolna w REPAIR_PLAN.md. Budowa pakietu nie oznacza aktualizacji działającej instalacji.
+
+## Widoczność pracy — R-024, wersja 1.5.3
+
+Zastępuje zachowanie Stop z R-023: okno pozostaje widoczne podczas kończenia, pokazuje komunikat i animację; Zamknij jest dostępne po zakończeniu. Ukryj nadal chowa okno na żądanie. Przygotowanie jest widoczne już podczas sprawdzania modeli. Powtórny skrót/menu podczas przygotowania lub kończenia przywołuje stan bieżącej sesji. Nie uruchamia nowej sesji ani nie kolejkuje restartu; po komunikacie zakończenia można uruchomić tłumaczenie ponownie. Nie skrócono czasu pracy natywnego silnika.
