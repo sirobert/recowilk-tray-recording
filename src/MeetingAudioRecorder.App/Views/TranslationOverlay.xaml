@@ -9,7 +9,7 @@
     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
     <TextBlock x:Name="StatusLabel" Text="Ładowanie tłumacza…" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
     <Button Grid.Column="1" Content="Ukryj" Click="HideWindow" FontSize="11" Padding="6,1" Margin="6,0"/>
-    <Button Grid.Column="2" Content="■ Stop" Click="StopTranslation" FontSize="11" Padding="6,1"/>
+    <Button x:Name="StopButton" Grid.Column="2" Content="■ Stop" Click="StopTranslation" FontSize="11" Padding="6,1"/>
    </Grid>
    <ScrollViewer x:Name="Scroll" VerticalScrollBarVisibility="Auto">
     <ItemsControl x:Name="Lines"><ItemsControl.ItemTemplate><DataTemplate>

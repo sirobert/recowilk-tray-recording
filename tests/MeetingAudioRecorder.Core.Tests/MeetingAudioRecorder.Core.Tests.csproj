@@ -49,6 +49,7 @@
 
   <ItemGroup>
     <Compile Include="../../src/MeetingAudioRecorder.TranslationWorker/CaptureIdleBoundary.cs" Link="Translation/CaptureIdleBoundary.cs" />
+    <Compile Include="../../src/MeetingAudioRecorder.TranslationWorker/CaptureStartupRecovery.cs" Link="Translation/CaptureStartupRecovery.cs" />
     <Compile Include="../../src/MeetingAudioRecorder.TranslationWorker/ReplaySegmenter.cs" Link="Translation/ReplaySegmenter.cs" />
     <Compile Include="../../src/MeetingAudioRecorder.TranslationWorker/ReplayMailbox.cs" Link="Translation/ReplayMailbox.cs" />
     <Compile Include="../../src/MeetingAudioRecorder.TranslationWorker/LatestDraft.cs" Link="Translation/LatestDraft.cs" />

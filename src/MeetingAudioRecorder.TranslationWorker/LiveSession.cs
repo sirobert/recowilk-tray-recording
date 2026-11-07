@@ -191,10 +191,11 @@ public sealed class LiveSession(string root, bool turbo, Action<string> status, 
             {
                 if (wavPath is not null) await FeedFile(wavPath);
                 else await EndpointCapture.Run(deviceId ?? throw new InvalidOperationException("Wybierz urządzenie audio."), systemAudio, Accept, () => { if (!audio.Writer.TryWrite(new([], clock.Elapsed.TotalMilliseconds))) Fail("Przeciążenie bufora audio."); },
-                    () => status(systemAudio ? "● Dźwięk komputera — nasłuchiwanie" : "● Mikrofon włączony — nasłuchiwanie"), stop.Token);
+                    () => status(systemAudio ? "● Dźwięk komputera — nasłuchiwanie" : "● Mikrofon włączony — nasłuchiwanie"), stop.Token,
+                    () => status("Urządzenie zmieniło stan. Ponawiam połączenie…"));
             }
             catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
-            catch (Exception ex) { Fail("Błąd źródła audio: " + ex.Message); }
+            catch (Exception ex) { Fail("Błąd źródła audio: " + CaptureStartupRecovery.Describe(ex, systemAudio)); }
             finally { audio.Writer.TryComplete(); status(Fault ?? "Źródło wyłączone. Kończę ostatnią frazę…"); }
             await producer; await worker; await monitor;
         }

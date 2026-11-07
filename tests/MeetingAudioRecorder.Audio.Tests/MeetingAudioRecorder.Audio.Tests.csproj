@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -19,6 +20,10 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+    <Page Include="../../src/MeetingAudioRecorder.App/Views/TranslationOverlay.xaml" Link="Views/TranslationOverlay.xaml" />
+    <Compile Include="../../src/MeetingAudioRecorder.App/Views/TranslationOverlay.xaml.cs" Link="Views/TranslationOverlay.xaml.cs" />
   </ItemGroup>
 
   <ItemGroup>

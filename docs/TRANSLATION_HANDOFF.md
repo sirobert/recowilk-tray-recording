@@ -87,3 +87,11 @@ Na tym komputerze, w `C:\temp\grok\recorder`:
 - Materiał użytkownika: `C:\temp\grok\recorder-live-nagrania\export-en-meetings`. Tylko do lokalnych testów zgodnie z uzgodnieniem; nie do publikacji w repozytorium.
 
 Jeśli tych katalogów nie ma na innym komputerze, zaznacz brak materiałów źródłowych. Nie dopisuj fikcyjnych wyników. Nowe badanie uzasadniaj konkretnym problemem: np. utrata negacji albo opóźnienie finału, a nie samym pojawieniem się kolejnego modelu.
+
+## Zamykanie napisów — poprawka R-023 (2026-11-07)
+
+Stop natychmiast chowa okno i zleca zatrzymanie tłumaczenia; zakończenie zapisu pozostaje asynchroniczne. Po zakończeniu lub błędzie przycisk zmienia się na Zamknij. Alt+F4 zatrzymuje aktywne tłumaczenie, a Ukryj nadal tylko chowa napisy. Testy WPF odtwarzają zachowanie przed poprawką. Zgłoszonego błędu źródła audio nie odtworzono w krótkiej próbie obu urządzeń WH-1000XM4 z silnikiem zainstalowanej wersji 1.5.0; nie uznawaj go za naprawiony bez pełnego komunikatu i diagnozy.
+
+Uzupełnienie R-023: użytkownik podał HRESULT 0x88890004 (AUDCLNT_E_DEVICE_INVALIDATED). Dodano maksymalnie dwa ponowienia tego samego endpointu co 500 ms, tylko przed pierwszym odebranym audio, oraz opis błędu z nazwą źródła i wskazówką ponownego uruchomienia. Nie wznawiamy w środku frazy ani nie przełączamy urządzenia automatycznie. Kod nie rozstrzyga, czy przyczyną było odłączenie czy rekonfiguracja Bluetooth. Pełna brama: 223 testy przeszło, 1 MF opt-in pominięty; fizyczne odłączenie pozostaje do testu. Instalacja nadal 1.5.0.
+
+Wydanie 1.5.2 z poprawkami R-023 zbudowane 2026-11-07; instalator w publish/installer. Pełna weryfikacja i suma kontrolna w REPAIR_PLAN.md. Budowa pakietu nie oznacza aktualizacji działającej instalacji.

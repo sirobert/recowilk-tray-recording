@@ -13,7 +13,17 @@ internal sealed class EventSyncLoopbackCapture(MMDevice device) : WasapiCapture(
 internal static class EndpointCapture
 {
     internal sealed record Stats(long CapturedBytes, long SilenceBytes);
-    public static async Task<Stats> Run(string id, bool systemAudio, Action<byte[], int> accept, Action idle, Action started, CancellationToken stop)
+    public static Task<Stats> Run(string id, bool systemAudio, Action<byte[], int> accept, Action idle, Action started, CancellationToken stop, Action? retrying = null)
+    {
+        int receivedAudio = 0;
+        return CaptureStartupRecovery.Run(() => RunOnce(id, systemAudio, (bytes, count) =>
+        {
+            if (count > 0) Interlocked.Exchange(ref receivedAudio, 1);
+            accept(bytes, count);
+        }, idle, started, stop), () => Volatile.Read(ref receivedAudio) != 0, () => retrying?.Invoke(), stop);
+    }
+
+    private static async Task<Stats> RunOnce(string id, bool systemAudio, Action<byte[], int> accept, Action idle, Action started, CancellationToken stop)
     {
         using var enumerator = new MMDeviceEnumerator(); using var device = enumerator.GetDevice(id);
         if (device.DataFlow != (systemAudio ? DataFlow.Render : DataFlow.Capture)) throw new InvalidOperationException("Urządzenie nie pasuje do wybranego źródła.");

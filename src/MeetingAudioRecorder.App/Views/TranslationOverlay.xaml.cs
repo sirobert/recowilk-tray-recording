@@ -16,7 +16,7 @@ public partial class TranslationOverlay : Window
     private readonly Action stop;
     private readonly Action<TranslationOverlay> geometry;
     private readonly DispatcherTimer saveTimer = new() { Interval = TimeSpan.FromMilliseconds(700) };
-    private bool showOriginal, allowClose, applying;
+    private bool showOriginal, allowClose, applying, finished, stopRequested;
     public TranslationOverlay(TranslationSettings settings, Action stop, Action<TranslationOverlay> geometry)
     {
         InitializeComponent(); this.stop = stop; this.geometry = geometry; Lines.ItemsSource = lines;
@@ -52,11 +52,21 @@ public partial class TranslationOverlay : Window
         Scroll.ScrollToEnd();
     }
     public void Status(string text) => StatusLabel.Text = text;
-    public void Finish(string status) { foreach (var row in lines.Where(x => x.Draft).ToArray()) lines.Remove(row); Status(status); }
+    public void Finish(string status)
+    {
+        finished = true; StopButton.Content = "Zamknij";
+        foreach (var row in lines.Where(x => x.Draft).ToArray()) lines.Remove(row);
+        Status(status);
+    }
     public void Destroy() { saveTimer.Stop(); allowClose = true; Close(); }
     private void ScheduleSave() { if (!applying && IsLoaded) { saveTimer.Stop(); saveTimer.Start(); } }
     private void MoveWindow(object sender, MouseButtonEventArgs e) { if (e.LeftButton == MouseButtonState.Pressed) DragMove(); }
     private void HideWindow(object sender, RoutedEventArgs e) => Hide();
-    private void StopTranslation(object sender, RoutedEventArgs e) => stop();
-    protected override void OnClosing(CancelEventArgs e) { if (!allowClose) { e.Cancel = true; Hide(); } base.OnClosing(e); }
+    private void StopTranslation(object sender, RoutedEventArgs e) => Dismiss();
+    private void Dismiss()
+    {
+        Hide();
+        if (!finished && !stopRequested) { stopRequested = true; stop(); }
+    }
+    protected override void OnClosing(CancelEventArgs e) { if (!allowClose) { e.Cancel = true; Dismiss(); } base.OnClosing(e); }
 }
