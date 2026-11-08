@@ -2,7 +2,7 @@
 ; Nie usuwa nagrań użytkownika przy deinstalacji.
 
 #define MyAppName "Meeting Audio Recorder"
-#define MyAppVersion "1.5.5"
+#define MyAppVersion "1.5.6"
 #define MyAppPublisher "MeetingAudioRecorder"
 #define MyAppExeName "MeetingAudioRecorder.exe"
 

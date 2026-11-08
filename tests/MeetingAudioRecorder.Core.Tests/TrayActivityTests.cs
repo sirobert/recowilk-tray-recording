@@ -4,6 +4,27 @@ namespace MeetingAudioRecorder.Core.Tests;
 
 public class TrayActivityTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void MissingHistoricalFilesAreInformationalNotGlobalAlarm(bool enabled)
+    {
+        var upload = UploadActivity.From([Entry(RecordingExportStatus.MissingFile)], enabled);
+        Assert.False(upload.NeedsAttention);
+        Assert.Contains("brak pliku: 1", upload.Text);
+        Assert.False(new RecorderTrayStatus { Upload = upload }.NeedsAttention);
+    }
+
+    [Theory]
+    [InlineData(RecordingExportStatus.PermanentFailure)]
+    [InlineData(RecordingExportStatus.WaitingForCredentials)]
+    public void MissingFilesDoNotHideActualExportProblems(RecordingExportStatus problem)
+    {
+        var upload = UploadActivity.From([Entry(RecordingExportStatus.MissingFile), Entry(problem)], true);
+        Assert.True(upload.NeedsAttention);
+        Assert.Contains("brak pliku: 1", upload.Text);
+        Assert.Contains("wymaga uwagi: 1", upload.Text);
+    }
     [Fact]
     public void LongRecordingDurationDoesNotWrapAt24Hours()
     {

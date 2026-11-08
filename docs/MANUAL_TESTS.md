@@ -336,3 +336,9 @@ Na nowym profilu: Start tłumaczenia → Pobierz; sprawdź postęp, anulowanie, 
 6. Sprawdź podpowiedź, menu, 100/150/200% DPI, jasny/ciemny pasek systemowy i zamknięcie aplikacji podczas aktualizacji statusów.
 
 Wynik zapisz wraz z wersją Windows, DPI, urządzeniami i aktywnymi funkcjami. Powyższa lista nie oznacza wykonania testu sprzętowego.
+
+### 21A. Brakujące pliki historyczne (1.5.6)
+
+- Katalog zawiera wyłącznie wpisy Exported i MissingFile: po odświeżeniu menu ma pokazać licznik brakujących plików, bez żółtego wykrzyknika, przy braku innych błędów.
+- Dołącz błąd eksportu/autoryzacji albo błąd tłumaczenia: wykrzyknik nadal musi być widoczny, niezależnie od licznika brakujących plików.
+- Sprawdź, że wpisy i ich szczegóły nadal są dostępne w centrum nagrań. Nie usuwaj rzeczywistych plików użytkownika w celu testu; użyj izolowanych danych testowych.

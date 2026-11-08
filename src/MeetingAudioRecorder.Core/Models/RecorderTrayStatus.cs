@@ -19,7 +19,8 @@ public sealed record UploadActivity(string Text, bool NeedsAttention = false)
     public static UploadActivity From(IEnumerable<RecordingCatalogEntry> entries, bool enabled, Guid? activeRecordingId = null)
     {
         var items = entries.ToArray();
-        int attention = items.Count(e => e.ExportStatus is RecordingExportStatus.PermanentFailure or RecordingExportStatus.MissingFile or RecordingExportStatus.WaitingForCredentials);
+        int attention = items.Count(e => e.ExportStatus is RecordingExportStatus.PermanentFailure or RecordingExportStatus.WaitingForCredentials);
+        int missing = items.Count(e => e.ExportStatus == RecordingExportStatus.MissingFile);
         var inProgress = items.Where(e => e.ExportStatus is RecordingExportStatus.Connecting or RecordingExportStatus.CreatingMeeting
             or RecordingExportStatus.InitializingUpload or RecordingExportStatus.Uploading or RecordingExportStatus.Completing).ToArray();
         var active = inProgress.Where(e => e.RecordingId == activeRecordingId).ToArray();
@@ -34,6 +35,7 @@ public sealed record UploadActivity(string Text, bool NeedsAttention = false)
         }
         if (pending > 0) parts.Add($"oczekuje: {pending}");
         if (attention > 0) parts.Add($"wymaga uwagi: {attention}");
+        if (missing > 0) parts.Add($"brak pliku: {missing}");
         return new(parts.Count == 0 ? "brak oczekujących" : string.Join(" · ", parts), attention > 0);
     }
 }

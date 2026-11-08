@@ -107,3 +107,5 @@ Okno nie ogranicza już widoku do sześciu wypowiedzi. Read-only RichTextBox zac
 ## Status tłumacza w tray — R-026, wersja 1.5.5
 
 TranslationController.Activity jest typowanym stanem niezależnym od nagrywania. Uruchamianie obejmuje weryfikację/ładowanie modeli; Running wymaga ready od wszystkich wybranych źródeł. Kończenie/błąd nie może zostać nadpisane spóźnionym ready. TrayIconController scala stany na dispatcherze: aktualizacja czasu nagrania nie kasuje stanu tłumacza ani wysyłki. Ikona ma niezależne znaczniki; T pozostaje w trakcie uruchamiania i kończenia, szczegóły są w podpowiedzi/menu. Diagnostyka --translation-tray-smoke jest izolowana i nie uruchamia produkcyjnego startupu.
+
+R-027 (1.5.6): MissingFile jest informacją w podpowiedzi/menu wysyłki, bez globalnego wykrzyknika. Nie zmienia to alarmów błędów tłumaczenia i nagrywania ani zapisanej historii.

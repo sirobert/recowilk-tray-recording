@@ -602,3 +602,15 @@ Status: implementacja, pełna weryfikacja i instalator 1.5.5 zakończone.
 - Izolowana diagnostyka --translation-tray-smoke: kod 0, sprawdzone aktualizacje z tła i wiązania trzech statusów w rzeczywistym menu. Obejrzano out/tray-status-ui/states.png i menu.png (16/32 px, oba znaczniki i błąd). Syntetyczne dane, bez capture, katalogu użytkownika i sieci. Scenariusze rzeczywistego tray z równoległymi funkcjami i DPI pozostają w MANUAL_TESTS.
 
 R-026 — pakiet: MeetingAudioRecorder-Setup-1.5.5.exe, 355309539 B, SHA-256 99DF6BF0FCDCDA8DFB8636C97854B3704AD97DB3CD09A0EB531657A707E8334A. EXE aplikacji 1.5.5.0. Czysta publikacja i Inno Setup zakończone (out/release-1.5.5-installer.log). Nie aktualizowano działającej instalacji.
+
+### R-027 — brakujące pliki w historii bez stałego alarmu tray (2026-11-08)
+
+Status: poprawka, pełna weryfikacja i instalator 1.5.6 ukończone.
+
+- MissingFile w katalogu jest informacją historyczną: menu/podpowiedź wysyłki pokazuje osobny licznik „brak pliku”, ale sam ten stan nie zapala żółtego wykrzyknika.
+- PermanentFailure, WaitingForCredentials, błąd odczytu kolejki oraz błędy nagrywania/tłumaczenia nadal powodują alarm. Brakujący plik nie maskuje innego błędu.
+- Nie usuwamy i nie zmieniamy wpisów katalogu, plików ani statusów wysłania. Centrum nagrań zachowuje dotychczasowy filtr „Wymagają uwagi”. Brak lokalnego MP3 po potwierdzonym eksporcie nadal nie unieważnia statusu Exported.
+- Cztery przypadki testowe odtworzyły problem przed implementacją: MissingFile z włączoną i wyłączoną kolejką oraz razem z błędem eksportu/brakiem autoryzacji. Dowód: out/tray-missing-before.log.
+- Wykonano odczyt diagnostyczny lokalnego katalogu bez modyfikacji i bez zapisywania tytułów, ścieżek lub treści rozmów; potwierdzono, że alarm wywołują wpisy MissingFile. Test tray po aktualizacji instalacji pozostaje do wykonania.
+
+R-027 — weryfikacja: scripts/verify.ps1 zaliczone (format, Release bez ostrzeżeń/błędów, 243 przeszło / 1 MF opt-in pominięty). Cztery nowe przypadki po poprawce przeszły. Instalator MeetingAudioRecorder-Setup-1.5.6.exe: 355309819 B, SHA-256 FB15EC5393A6CBFBC582FEF833E9EE3FCD6E8244A388F954FC91EAAAB7BE341C; aplikacja 1.5.6.0. Dowody: out/release-1.5.6-verify.log, out/release-1.5.6-installer.log. Nie podmieniano działającej instalacji; ręczny test tray po aktualizacji pozostaje do wykonania.
